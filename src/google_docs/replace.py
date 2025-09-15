@@ -15,7 +15,7 @@ def replace_markdown_placeholders(docs_service, document_id: str, replacements: 
                     if 'textRun' in run and run['textRun']['content']:
                         segment_text = run['textRun']['content']
                         for key in replacements.keys():
-                            for match in re.finditer(re.escape('{{' + key + '}}'), segment_text):
+                            for match in re.finditer(re.escape(key), segment_text):
                                 start = run['startIndex'] + match.start()
                                 end = run['startIndex'] + match.end()
                                 found_holders.append({'key': key, 'range': {'startIndex': start, 'endIndex': end}})
@@ -39,3 +39,4 @@ def replace_markdown_placeholders(docs_service, document_id: str, replacements: 
 
     except Exception as e:
         return {"status": "error", "message": f"An unexpected error occurred: {e}"}
+
