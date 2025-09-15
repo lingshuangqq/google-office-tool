@@ -1,7 +1,7 @@
 import argparse
 import os
 from auth import get_services_with_oauth, get_services_with_service_account
-from google_docs import append_to_google_doc, clear_google_doc, write_to_google_doc, replace_markdown_placeholders
+from google_docs import append_to_google_doc, clear_google_doc, write_to_google_doc, replace_markdown_placeholders, read_google_doc
 from google_slider import create_presentation_from_markdown
 
 def main():
@@ -35,6 +35,9 @@ def main():
     replace_parser.add_argument("doc_id")
     replace_parser.add_argument("placeholder")
     replace_parser.add_argument("markdown_file")
+
+    read_parser = docs_subparsers.add_parser("read")
+    read_parser.add_argument("doc_id")
 
     # Google Slides Tool
     slides_parser = subparsers.add_parser("slides")
@@ -81,6 +84,12 @@ def main():
             replacements = {args.placeholder: content}
             replace_markdown_placeholders(services["docs"], args.doc_id, replacements)
             print(f"Replaced placeholder in document {args.doc_id}")
+        elif args.command == "read":
+            result = read_google_doc(services["docs"], args.doc_id)
+            if result["status"] == "success":
+                print(result["content"])
+            else:
+                print(f"An error occurred: {result['message']}")
 
     elif args.tool == "slides":
         if args.command == "create":
