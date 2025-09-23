@@ -79,6 +79,11 @@ python3 code/src/client.py [工具] [命令] [参数]
   python3 code/src/client.py docs clear <DOC_ID>
   ```
 
+- **读取文档内容:**
+  ```bash
+  python3 code/src/client.py docs read <DOC_ID>
+  ```
+
 #### Google Slides 工具 (`slides`)
 
 - **创建新演示文稿:**
