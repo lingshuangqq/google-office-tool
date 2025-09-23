@@ -129,6 +129,32 @@ python3 code/src/client.py [工具] [命令] [参数]
   bash code/scripts/run_create_presentation.sh <Markdown文件路径> [文件夹ID] [模板ID] "[标题]"
   ```
 
+## MCP 服务 (本地工具)
+
+除了传统的命令行用法，本项目现在还提供一个 MCP (Model Context Protocol) 服务，将所有功能封装为可被 AI 智能体或其它程序调用的本地工具。
+
+该服务运行在 STDIO (标准输入/输出) 模式下，无需启动网络服务器。
+
+### 环境与运行
+
+1.  **安装依赖**: 项目使用 `uv` 进行环境管理。请先确保 `uv` 已安装，然后执行：
+    ```bash
+    # 在 code/ 目录下创建虚拟环境
+    uv venv
+
+    # 激活虚拟环境
+    source .venv/bin/activate
+
+    # 安装依赖
+    uv pip install -r requirements.txt
+    ```
+
+2.  **运行测试**: 激活虚拟环境后，您可以运行测试客户端来验证所有工具是否正常工作：
+    ```bash
+    python src/mcp-server/test_client.py
+    ```
+    该脚本会自动调用 `server.py` 并执行一系列操作（创建、读取、修改、删除文档），然后输出结果。
+
 ## Markdown 格式协议
 
 - **Google Docs:** 用于生成文档的 Markdown 解析器支持标题、粗体和列表。更多细节请参考 `code/src/google_docs/markdown_parser.py` 中的实现。
