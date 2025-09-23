@@ -3,30 +3,55 @@ import sys
 import tempfile
 import json
 
+# --- Dynamic sys.path Correction ---
+# Calculate the repository root (the 'code' directory) by going up two levels.
+# This ensures that the 'src' module can be found regardless of how the script is run.
+_repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+# Add the repository root to the Python path if it's not already there.
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+# --- End Correction ---
+
 from fastmcp import FastMCP
 
-# Add the src directory to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from auth import get_services_with_oauth
-from google_docs.write import write_to_google_doc
-from google_docs.append import append_to_google_doc
-from google_docs.clear import clear_google_doc
-from google_docs.replace import replace_markdown_placeholders
-from google_docs.read import read_google_doc
-from google_slider.create import create_presentation_from_markdown
+from src.auth import get_services_with_oauth
+from src.google_docs.write import write_to_google_doc
+from src.google_docs.append import append_to_google_doc
+from src.google_docs.clear import clear_google_doc
+from src.google_docs.replace import replace_markdown_placeholders
+from src.google_docs.read import read_google_doc
+from src.google_slider.create import create_presentation_from_markdown
 
 mcp = FastMCP("Google Office Tool 🚀")
 
 # --- Helper function for authentication ---
 def get_services():
-    """Helper to get authenticated Google services using OAuth 2.0."""
-    creds_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../credentials/oauth-credentials.json'))
-    token_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../credentials/token.json'))
-    
+    """
+    Helper to get authenticated Google services using OAuth 2.0.
+    It uses dynamic path calculation to locate the token file and reads
+    credentials from a hardcoded path, making it suitable for open-source distribution.
+    """
+    # --- Dynamic Path Calculation ---
+    # The root of the repository is two levels up from this script's directory.
+    # (src/mcp-server/ -> src/ -> /)
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+    # --- Token Path ---
+    # Default token path is in the 'credentials' directory at the repo root.
+    default_token_path = os.path.join(repo_root, 'credentials', 'token.json')
+    token_path = os.environ.get('OAUTH_TOKEN_PATH', default_token_path)
+
+    # Ensure the directory for the token exists
+    token_dir = os.path.dirname(token_path)
+    if not os.path.exists(token_dir):
+        os.makedirs(token_dir)
+
+    # --- Credentials from Hardcoded Path ---
+    creds_path = os.path.join(repo_root, 'credentials', 'oauth-credentials.json')
     if not os.path.exists(creds_path):
-        raise FileNotFoundError(f"OAuth credentials file not found at {creds_path}")
-        
+        raise ValueError(f"Credential file not found at: {creds_path}. Please make sure the file exists.")
+
     return get_services_with_oauth(creds_path, token_path)
 
 # --- MCP Tools ---

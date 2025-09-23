@@ -18,7 +18,7 @@
 ## 设置
 
 1.  **放置凭据文件**:
-    *   将 `oauth-credentials.json` 文件放置在 `code/credentials/` 目录中。
+    *   将 `oauth-credentials.json` 文件放置在 `credentials/` 目录中。
 
 2.  **配置 Gemini CLI**:
     *   您需要将以下配置添加到您的 Gemini CLI `settings.json` 文件中。您可以选择在项目级别或全局安装。
@@ -45,15 +45,18 @@
             "fastmcp",
             "fastmcp",
             "run",
-            "/Users/amylu/Documents/gemini-cli-project/google-office-tool/code/src/mcp-server/server.py"
-          ]
+            "src/mcp-server/server.py"
+          ],
+          "cwd": "<YOUR_PROJECT_ROOT_DIRECTORY>"
         }
     ```
+
+    **注意:** 如果您在全局 `settings.json` 中配置此工具，建议使用 `cwd` 字段来指定项目的绝对路径。请将 `<YOUR_PROJECT_ROOT_DIRECTORY>` 替换为您电脑上存放此项目的文件夹的绝对路径。如果是在项目级的 `.gemini/settings.json` 中配置，则通常不需要 `cwd` 字段，因为命令会默认在项目根目录执行。
 
 ## 认证
 
 *   首次运行时，该工具将启动 OAuth 2.0 流程。您的网络浏览器将打开，系统将提示您授权该应用程序。
-*   成功认证后，将在 `code/credentials/` 目录中创建一个 `token.json` 文件。此文件存储您的访问和刷新令牌，因此您不必每次都重新进行身份验证。
+*   成功认证后，将在 `credentials/` 目录中创建一个 `token.json` 文件。此文件存储您的访问和刷新令牌，因此您不必每次都重新进行身份验证。
 
 ## 如何使用
 
