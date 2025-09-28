@@ -87,6 +87,7 @@ def main():
             clear_google_doc(services["docs"], args.doc_id)
             print(f"Document {args.doc_id} cleared")
         elif args.command == "replace":
+            content = ""
             if os.path.isfile(args.markdown_or_text):
                 with open(args.markdown_or_text, "r") as f:
                     content = f.read()
