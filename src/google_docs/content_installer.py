@@ -7,42 +7,22 @@ from .operations import execute_batch_update
 def install_content(docs_service, document_id: str, markdown_content: str, start_index: int):
     """Processes and installs mixed content at a specific index in a document."""
     
-    # 1. Create the operation plan from the markdown content.
     operation_plan = markdown_parser.create_operation_plan(markdown_content)
     if not operation_plan:
         return {"status": "success", "message": "No content to install."}
 
-    # 2. Initialize the execution loop.
-    pending_simple_requests = []
     current_index = start_index
 
-    # 3. Loop through the plan and execute.
     for operation in operation_plan:
         if operation['type'] == 'simple':
-            requests, length = markdown_parser.get_simple_markdown_requests(operation['content'], current_index)
-            pending_simple_requests.extend(requests)
-            current_index += length
-
-        elif operation['type'] == 'table':
-            # If we encounter a table, first execute any pending simple requests.
-            if pending_simple_requests:
-                result = execute_batch_update(docs_service, document_id, pending_simple_requests)
-                if result['status'] != 'success': return result
-                pending_simple_requests = [] # Clear the batch
-                time.sleep(1) # Pause after execution
-
-            # Then, handle the table insertion at the current location.
-            result = _handle_table_insertion_at_index(docs_service, document_id, operation['data'], current_index)
+            result = _handle_simple_insertion_at_index(docs_service, document_id, operation['content'], current_index)
             if result['status'] != 'success': return result
-            
-            # After a table is inserted, the index structure changes significantly.
-            # We must refetch the end index for subsequent operations.
             current_index = _get_end_index(docs_service, document_id)
 
-    # After the loop, execute any remaining simple requests.
-    if pending_simple_requests:
-        result = execute_batch_update(docs_service, document_id, pending_simple_requests)
-        if result['status'] != 'success': return result
+        elif operation['type'] == 'table':
+            result = _handle_table_insertion_at_index(docs_service, document_id, operation['data'], current_index)
+            if result['status'] != 'success': return result
+            current_index = _get_end_index(docs_service, document_id)
 
     return {"status": "success", "message": "Successfully installed all content blocks."}
 
@@ -71,7 +51,7 @@ def _handle_table_insertion_at_index(docs_service, document_id: str, table_data:
         time.sleep(1)
 
         doc = docs_service.documents().get(documentId=document_id).execute()
-        populate_requests = markdown_parser.find_table_and_get_cell_requests(doc.get('body', {}), num_rows, num_cols, cell_contents)
+        populate_requests = markdown_parser.find_table_and_get_cell_requests(doc.get('body', {}), num_rows, num_cols, cell_contents, start_index)
         
         if not populate_requests:
             return {"status": "error", "message": "Could not find table to populate cells."}
@@ -80,3 +60,17 @@ def _handle_table_insertion_at_index(docs_service, document_id: str, table_data:
 
     except Exception as e:
         return {"status": "error", "message": f"An error occurred during table insertion: {e}"}
+
+def _handle_simple_insertion_at_index(docs_service, document_id: str, markdown_content: str, start_index: int):
+    try:
+        requests, _ = markdown_parser.get_simple_markdown_requests(markdown_content, start_index)
+        if not requests:
+             return {"status": "success", "message": "No content to append."}
+
+        result = execute_batch_update(docs_service, document_id, requests)
+        if result['status'] == 'success':
+            time.sleep(1)
+        return result
+
+    except Exception as e:
+        return {"status": "error", "message": f"An error occurred during simple insertion: {e}"}

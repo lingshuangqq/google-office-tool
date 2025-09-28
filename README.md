@@ -71,8 +71,10 @@ python3 code/src/client.py [工具] [命令] [参数]
 
 - **替换占位符:**
   ```bash
-  python3 code/src/client.py docs replace <DOC_ID> <占位符文本> <MARKDOWN_FILE>
+  python3 code/src/client.py docs replace <DOC_ID> <占位符文本> <MARKDOWN_FILE_OR_TEXT>
   ```
+  **注意**: 当使用包含多个内容块（如文本和表格）的复杂内容进行替换时，只有第一个内容块会插入到占位符的位置，后续的内容块将被追加到整个文档的末尾。这是一个为保证稳定性而存在的已知限制。
+
 
 - **清空文档:**
   ```bash

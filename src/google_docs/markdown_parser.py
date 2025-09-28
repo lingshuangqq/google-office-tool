@@ -6,8 +6,8 @@ def create_operation_plan(markdown_text: str) -> list:
     lines = markdown_text.splitlines()
     i = 0
     while i < len(lines):
-        # Check if the current line is the start of a table
-        if lines[i].strip().startswith('|') and (i + 1) < len(lines) and re.match(r'^\|[-|: ]+\|$', lines[i+1].strip()):
+        line = lines[i]
+        if line.strip().startswith('|') and (i + 1) < len(lines) and re.match(r'^\|[-|: ]+\|$', lines[i+1].strip()):
             table_lines = []
             j = i
             while j < len(lines) and lines[j].strip().startswith('|'):
@@ -21,15 +21,12 @@ def create_operation_plan(markdown_text: str) -> list:
                 i = j
                 continue
         
-        # If not a table, treat as a block of simple text
         simple_text_lines = []
         j = i
-        # Collect all lines until the next table starts
         while j < len(lines) and not (lines[j].strip().startswith('|') and (j + 1) < len(lines) and re.match(r'^\|[-|: ]+\|$', lines[j+1].strip())):
             simple_text_lines.append(lines[j])
             j += 1
         
-        # Only add a block if it contains non-empty lines
         if any(line.strip() for line in simple_text_lines):
             plan.append({'type': 'simple', 'content': '\n'.join(simple_text_lines)})
         i = j
@@ -62,26 +59,36 @@ def parse_markdown_table(markdown_text: str):
     num_rows = len(data_rows) + 1
     return num_rows, num_columns, all_cell_contents
 
-def find_table_and_get_cell_requests(doc_body: dict, table_rows: int, table_cols: int, cell_contents: list):
-    """Finds the LAST table and creates text insertion requests in reverse order."""
-    requests = []
+def find_table_and_get_cell_requests(doc_body: dict, table_rows: int, table_cols: int, cell_contents: list, expected_index: int):
+    """Finds the table closest to the expected index and creates text insertion requests."""
     content = doc_body.get('content', [])
-    
-    for element in reversed(content):
+    best_match_table = None
+    min_distance = float('inf')
+
+    # Find the best matching table (the one closest to our insertion point)
+    for element in content:
         if 'table' in element and element['table']['rows'] == table_rows and element['table']['columns'] == table_cols:
-            table = element['table']
-            content_pointer = len(cell_contents) - 1
-            for row in reversed(table.get('tableRows', [])):
-                for cell in reversed(row.get('tableCells', [])):
-                    if content_pointer >= 0:
-                        if cell.get('content') and cell['content'][0].get('startIndex'):
-                            cell_start_index = cell['content'][0]['startIndex']
-                            text_to_insert = cell_contents[content_pointer]
-                            if text_to_insert:
-                                requests.append({'insertText': {'location': {'index': cell_start_index}, 'text': text_to_insert}})
-                        content_pointer -= 1
-            return requests
-    return []
+            distance = abs(element['startIndex'] - expected_index)
+            if distance < min_distance:
+                min_distance = distance
+                best_match_table = element['table']
+
+    if not best_match_table:
+        return []
+
+    # Now, generate requests for the best-matched table
+    requests = []
+    content_pointer = len(cell_contents) - 1
+    for row in reversed(best_match_table.get('tableRows', [])):
+        for cell in reversed(row.get('tableCells', [])):
+            if content_pointer >= 0:
+                if cell.get('content') and cell['content'][0].get('startIndex'):
+                    cell_start_index = cell['content'][0]['startIndex']
+                    text_to_insert = cell_contents[content_pointer]
+                    if text_to_insert:
+                        requests.append({'insertText': {'location': {'index': cell_start_index}, 'text': text_to_insert}})
+                content_pointer -= 1
+    return requests
 
 def get_simple_markdown_requests(markdown_text: str, start_index: int):
     """Generates API requests for a block of simple markdown text."""
@@ -92,7 +99,7 @@ def get_simple_markdown_requests(markdown_text: str, start_index: int):
         requests, length = process_line_as_text(line, current_index)
         all_requests.extend(requests)
         current_index += length
-    return all_requests, current_index - start_index # Return total length
+    return all_requests, current_index - start_index
 
 def process_line_as_text(line: str, start_index: int):
     requests = []
