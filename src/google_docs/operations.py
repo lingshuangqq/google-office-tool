@@ -1,14 +1,23 @@
+import json
 from googleapiclient.errors import HttpError
 
 def execute_batch_update(docs_service, document_id: str, requests: list) -> dict:
-    """Executes a batchUpdate request and handles common errors."""
+    """Executes a batchUpdate request and returns the API response."""
     try:
         if not requests:
             return {"status": "success", "message": "No changes were needed."}
-        docs_service.documents().batchUpdate(documentId=document_id, body={'requests': requests}).execute()
-        return {"status": "success", "message": f"Successfully updated document {document_id}."}
+        
+        response = docs_service.documents().batchUpdate(documentId=document_id, body={'requests': requests}).execute()
+        return {"status": "success", "message": f"Successfully updated document {document_id}.", "api_response": response}
     except HttpError as err:
-        return {"status": "error", "message": f"An HttpError occurred: {err.reason}"}
+        # Extracting the error message from the HttpError
+        error_details = str(err)
+        try:
+            error_json = json.loads(err.content.decode('utf-8'))
+            error_message = error_json.get('error', {}).get('message', error_details)
+        except (json.JSONDecodeError, AttributeError):
+            error_message = error_details
+        return {"status": "error", "message": f"An HttpError occurred: {error_message}"}
     except Exception as e:
         return {"status": "error", "message": f"An unexpected error occurred: {e}"}
 

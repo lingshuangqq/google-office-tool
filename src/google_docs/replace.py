@@ -1,42 +1,40 @@
-import re
-from . import markdown_parser
 from .operations import execute_batch_update
+import re
 
 def replace_markdown_placeholders(docs_service, document_id: str, replacements: dict):
-    """Finds and replaces multiple placeholders with formatted markdown content."""
+    """Finds a placeholder and replaces it with simple text for verification."""
     try:
         doc = docs_service.documents().get(documentId=document_id, fields='body(content)').execute()
         content = doc.get('body', {}).get('content', [])
         
         found_holders = []
-        for element in content:
-            if 'paragraph' in element:
-                for run in element['paragraph']['elements']:
-                    if 'textRun' in run and run['textRun']['content']:
-                        segment_text = run['textRun']['content']
-                        for key in replacements.keys():
-                            for match in re.finditer(re.escape(key), segment_text):
-                                start = run['startIndex'] + match.start()
-                                end = run['startIndex'] + match.end()
-                                found_holders.append({'key': key, 'range': {'startIndex': start, 'endIndex': end}})
+        for key in replacements.keys():
+            for element in content:
+                if 'paragraph' in element:
+                    for run in element['paragraph']['elements']:
+                        if 'textRun' in run and run['textRun']['content']:
+                            if key in run['textRun']['content']:
+                                # Found a potential match. Now, get its precise range.
+                                for match in re.finditer(re.escape(key), run['textRun']['content']):
+                                    start = run['startIndex'] + match.start()
+                                    end = run['startIndex'] + match.end()
+                                    found_holders.append({'key': key, 'range': {'startIndex': start, 'endIndex': end}})
 
-        found_holders.sort(key=lambda x: x['range']['startIndex'], reverse=True)
-        
         if not found_holders:
-            return {"status": "error", "message": "Could not find any of the specified placeholders."}
+            return {"status": "error", "message": "Placeholder not found."}
 
-        all_requests = []
-        for holder in found_holders:
-            key = holder['key']
-            markdown_content = replacements[key]
-            start_index = holder['range']['startIndex']
-
-            all_requests.append({'deleteContentRange': {'range': holder['range']}})
-            markdown_requests = markdown_parser.get_markdown_requests(markdown_content, start_index)
-            all_requests.extend(markdown_requests)
-            
-        return execute_batch_update(docs_service, document_id, all_requests)
+        # For this test, just use the first one found.
+        holder = found_holders[0]
+        
+        requests = [
+            {'deleteContentRange': {'range': holder['range']}},
+            {'insertText': {
+                'location': {'index': holder['range']['startIndex']},
+                'text': '---> PLACEHOLDER REPLACED SUCCESSFULLY <---'
+            }}
+        ]
+        
+        return execute_batch_update(docs_service, document_id, requests)
 
     except Exception as e:
-        return {"status": "error", "message": f"An unexpected error occurred: {e}"}
-
+        return {"status": "error", "message": f"An unexpected error occurred during replace: {e}"}
