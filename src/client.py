@@ -7,9 +7,9 @@ from google_slider import create_presentation_from_markdown
 def main():
     parser = argparse.ArgumentParser(description="Google Office Tool CLI")
     parser.add_argument("--auth_method", choices=["oauth", "service_account"], default="oauth", help="Authentication method")
-    parser.add_argument("--creds_path", default="code/credentials/oauth-credentials.json", help="Path to credentials file")
-    parser.add_argument("--token_path", default="code/credentials/token.json", help="Path to token file")
-    parser.add_argument("--sa_path", default="code/credentials/docs-writer-credentials.json", help="Path to service account file")
+    parser.add_argument("--creds_path", default="credentials/oauth-credentials.json", help="Path to credentials file")
+    parser.add_argument("--token_path", default="credentials/token.json", help="Path to token file")
+    parser.add_argument("--sa_path", default="credentials/docs-writer-credentials.json", help="Path to service account file")
 
     subparsers = parser.add_subparsers(dest="tool")
 
@@ -34,7 +34,7 @@ def main():
     replace_parser = docs_subparsers.add_parser("replace")
     replace_parser.add_argument("doc_id")
     replace_parser.add_argument("placeholder")
-    replace_parser.add_argument("markdown_file")
+    replace_parser.add_argument("markdown_or_text")
 
     read_parser = docs_subparsers.add_parser("read")
     read_parser.add_argument("doc_id")
@@ -67,23 +67,38 @@ def main():
             else:
                 print(f"An error occurred: {result['message']}")
         elif args.command == "append":
+            content = ""
+            content_source = ""
             if args.file:
                 with open(args.file, "r") as f:
                     content = f.read()
-                append_to_google_doc(services["docs"], args.doc_id, content)
-                print(f"Appended content from {args.file} to document {args.doc_id}")
+                content_source = f"from {args.file}"
             elif args.text:
-                append_to_google_doc(services["docs"], args.doc_id, args.text)
-                print(f"Appended text to document {args.doc_id}")
+                content = args.text
+                content_source = "text"
+
+            if content:
+                result = append_to_google_doc(services["docs"], args.doc_id, content)
+                if result.get("status") == "success":
+                    print(f"Appended content {content_source} to document {args.doc_id}")
+                else:
+                    print(f"An error occurred: {result.get('message', 'Unknown error')}")
         elif args.command == "clear":
             clear_google_doc(services["docs"], args.doc_id)
             print(f"Document {args.doc_id} cleared")
         elif args.command == "replace":
-            with open(args.markdown_file, "r") as f:
-                content = f.read()
+            content = ""
+            if os.path.isfile(args.markdown_or_text):
+                with open(args.markdown_or_text, "r") as f:
+                    content = f.read()
+            else:
+                content = args.markdown_or_text
             replacements = {args.placeholder: content}
-            replace_markdown_placeholders(services["docs"], args.doc_id, replacements)
-            print(f"Replaced placeholder in document {args.doc_id}")
+            result = replace_markdown_placeholders(services["docs"], args.doc_id, replacements)
+            if result.get("status") == "success":
+                print(f"Replaced placeholder '{args.placeholder}' in document {args.doc_id}")
+            else:
+                print(f"An error occurred: {result.get('message', 'Unknown error')}")
         elif args.command == "read":
             result = read_google_doc(services["docs"], args.doc_id)
             if result["status"] == "success":
