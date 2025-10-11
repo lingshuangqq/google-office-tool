@@ -103,13 +103,60 @@ def get_simple_markdown_requests(markdown_text: str, start_index: int):
 
 def process_line_as_text(line: str, start_index: int):
     requests = []
-    text_to_process, header_style = handle_paragraph_style(line)
+    is_list_item = False
+
+    # Handle list items
+    if line.strip().startswith('* ') or line.strip().startswith('- '):
+        is_list_item = True
+        # Determine the indentation level
+        indentation_level = (len(line) - len(line.lstrip(' '))) / 2
+        # Remove the bullet point and leading spaces from the line
+        text_to_process = re.sub(r'^\s*[-*]\s*', '', line)
+        header_style = None
+    else:
+        text_to_process, header_style = handle_paragraph_style(line)
+
+    # Handle inline styles (bold, etc.)
     inline_requests, inserted_len = handle_inline_styles(text_to_process, start_index)
     requests.extend(inline_requests)
+
+    # Add a newline character at the end of the line
     requests.append({'insertText': {'location': {'index': start_index + inserted_len}, 'text': '\n'}})
     total_len = inserted_len + 1
+
+    # Apply heading style if applicable
     if header_style:
         requests.append({'updateParagraphStyle': {'range': {'startIndex': start_index, 'endIndex': start_index + total_len}, 'paragraphStyle': header_style, 'fields': 'namedStyleType'}})
+    
+    # Apply bullet point style if it's a list item
+    if is_list_item:
+        requests.append({
+            'createParagraphBullets': {
+                'range': {
+                    'startIndex': start_index,
+                    'endIndex': start_index + total_len
+                },
+                'bulletPreset': 'BULLET_DISC_CIRCLE_SQUARE'
+            }
+        })
+        # Apply indentation if necessary
+        if indentation_level > 0:
+            requests.append({
+                'updateParagraphStyle': {
+                    'range': {
+                        'startIndex': start_index,
+                        'endIndex': start_index + total_len
+                    },
+                    'paragraphStyle': {
+                        'indentStart': {
+                            'magnitude': 36 * indentation_level,
+                            'unit': 'PT'
+                        }
+                    },
+                    'fields': 'indentStart'
+                }
+            })
+
     return requests, total_len
 
 def handle_paragraph_style(line: str):
