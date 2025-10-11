@@ -62,7 +62,7 @@ def _handle_simple_append(docs_service, document_id: str, markdown_content: str)
     try:
         end_index = _get_end_index(docs_service, document_id)
         requests = [{'insertText': {'location': {'index': end_index}, 'text': '\n'}}] # Corrected newline escape
-        requests.extend(markdown_parser.get_simple_markdown_requests(markdown_content, end_index + 1))
+        requests.extend(markdown_parser.get_simple_markdown_requests(markdown_content, end_index + 1)[0])
 
         result = execute_batch_update(docs_service, document_id, requests)
         if result['status'] == 'success':

@@ -25,6 +25,7 @@
 - **索引计算错误**: 彻底修复了在 `append` 和 `replace` 操作中普遍存在的 `Index out of bounds`（索引越界）“差一错误”。
 - **客户端错误处理**: 修复了 `client.py` 中多个命令（特别是 `replace`）在执行失败时仍会错误地报告“成功”的 Bug，确保了真实的 API 错误能被展示给用户。
 - **回归 Bug**: 修复了因核心功能重构而意外导致 `write` 和 `replace` 命令功能失效的多个回归 Bug。
+- **`append` 命令 Bug**: 修复了 `append` 命令在处理 `markdown_parser` 返回的元组时出现的问题，该问题导致向 Google API 发送了无效的请求。
 
 ## [1.1.0] - 2025-09-15
 
