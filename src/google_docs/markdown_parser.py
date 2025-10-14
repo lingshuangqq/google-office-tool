@@ -175,8 +175,8 @@ def handle_inline_styles(text: str, start_index: int):
     """
     requests = []
     
-    # Regex to find all markdown tokens (bold, link, or inline code)
-    token_regex = r'(\*\*(?:.*?)\*\*|\[(?:.*?)\]\((?:.*?)\)|`(?:.*?)`)'
+    # Regex to find all markdown tokens, with the most specific ones first.
+    token_regex = r'(\*\*\[[^\]]+\]\([^\)]+\)\*\*|\*\*(?:.*?)\*\*|\[[^\]]+\]\([^\)]+\)|`(?:.*?)`)'
     parts = re.split(token_regex, text)
     
     current_pos = start_index
@@ -184,18 +184,26 @@ def handle_inline_styles(text: str, start_index: int):
         if not part:
             continue
 
-        # Check if the part is a bold token
-        bold_match = re.fullmatch(r'\*\*(?P<text>.*?)\*\*', part)
-        if bold_match:
+        # 1. Check for a bold link
+        bold_link_match = re.fullmatch(r'\*\*\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)\*\*', part)
+        if bold_link_match:
+            content = bold_link_match.group('text')
+            style = {
+                'bold': True,
+                'link': {'url': bold_link_match.group('url')}
+            }
+            fields = 'bold,link'
+        # 2. Check for a simple bold token
+        elif (bold_match := re.fullmatch(r'\*\*(?P<text>.*?)\*\*', part)):
             content = bold_match.group('text')
             style = {'bold': True}
             fields = 'bold'
-        # Check if the part is a link token
+        # 3. Check for a simple link token
         elif (link_match := re.fullmatch(r'\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)', part)):
             content = link_match.group('text')
             style = {'link': {'url': link_match.group('url')}}
             fields = 'link'
-        # Check if the part is an inline code token
+        # 4. Check for an inline code token
         elif (code_match := re.fullmatch(r'`(?P<text>.*?)`', part)):
             content = code_match.group('text')
             style = {
@@ -211,7 +219,7 @@ def handle_inline_styles(text: str, start_index: int):
                 }
             }
             fields = 'weightedFontFamily,backgroundColor'
-        # Otherwise, it's plain text
+        # 5. Otherwise, it's plain text
         else:
             content = part
             # Explicitly reset all styles for plain text to avoid inheritance
@@ -231,13 +239,13 @@ def handle_inline_styles(text: str, start_index: int):
         if not content:
             continue
 
-        # 1. Insert the text segment
+        # A. Insert the text segment
         requests.append({'insertText': {'location': {'index': current_pos}, 'text': content}})
         
         segment_start = current_pos
         segment_end = current_pos + len(content)
         
-        # 2. Apply the determined style
+        # B. Apply the determined style
         requests.append({
             'updateTextStyle': {
                 'range': {'startIndex': segment_start, 'endIndex': segment_end},
