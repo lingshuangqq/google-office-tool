@@ -86,7 +86,9 @@ def find_table_and_get_cell_requests(doc_body: dict, table_rows: int, table_cols
                     cell_start_index = cell['content'][0]['startIndex']
                     text_to_insert = cell_contents[content_pointer]
                     if text_to_insert:
-                        requests.append({'insertText': {'location': {'index': cell_start_index}, 'text': text_to_insert}})
+                        # Process cell content for inline styles (e.g., bold)
+                        inline_requests, _ = handle_inline_styles(text_to_insert, cell_start_index)
+                        requests.extend(inline_requests)
                 content_pointer -= 1
     return requests
 
