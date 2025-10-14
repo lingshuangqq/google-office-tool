@@ -170,13 +170,13 @@ def handle_paragraph_style(line: str):
 
 def handle_inline_styles(text: str, start_index: int):
     """
-    Correctly handles multiple inline styles like bold and links, overriding any
-    inherited document styles by explicitly styling every text segment.
+    Correctly handles multiple inline styles like bold, links, and inline code,
+    overriding any inherited document styles by explicitly styling every text segment.
     """
     requests = []
     
-    # Regex to find all markdown tokens (bold or link)
-    token_regex = r'(\*\*(?:.*?)\*\*|\[(?:.*?)\]\((?:.*?)\))'
+    # Regex to find all markdown tokens (bold, link, or inline code)
+    token_regex = r'(\*\*(?:.*?)\*\*|\[(?:.*?)\]\((?:.*?)\)|`(?:.*?)`)'
     parts = re.split(token_regex, text)
     
     current_pos = start_index
@@ -191,15 +191,42 @@ def handle_inline_styles(text: str, start_index: int):
             style = {'bold': True}
             fields = 'bold'
         # Check if the part is a link token
-        elif link_match := re.fullmatch(r'\[(?P<text>.*?)\]\((?P<url>.*?)\)', part):
+        elif (link_match := re.fullmatch(r'\[(?P<text>.*?)\]\((?P<url>.*?)\)', part)):
             content = link_match.group('text')
             style = {'link': {'url': link_match.group('url')}}
             fields = 'link'
+        # Check if the part is an inline code token
+        elif (code_match := re.fullmatch(r'`(?P<text>.*?)`', part)):
+            content = code_match.group('text')
+            style = {
+                'weightedFontFamily': {
+                    'fontFamily': 'Courier New'
+                },
+                'backgroundColor': {
+                    'color': {
+                        'rgbColor': {
+                            'red': 0.93, 'green': 0.93, 'blue': 0.93
+                        }
+                    }
+                }
+            }
+            fields = 'weightedFontFamily,backgroundColor'
         # Otherwise, it's plain text
         else:
             content = part
-            style = {'bold': False} # Explicitly set to non-bold
-            fields = 'bold'
+            # Explicitly reset all styles for plain text to avoid inheritance
+            style = {
+                'bold': False,
+                'italic': False,
+                'underline': False,
+                'strikethrough': False,
+                'backgroundColor': {},
+                'link': None,
+                'weightedFontFamily': {
+                    'fontFamily': 'Arial' # Reset font to a default
+                }
+            }
+            fields = 'bold,italic,underline,strikethrough,backgroundColor,link,weightedFontFamily'
 
         if not content:
             continue

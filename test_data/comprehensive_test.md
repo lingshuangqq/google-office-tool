@@ -4,16 +4,16 @@ This document tests all supported formatting features of the Markdown-to-Google-
 
 ## H2: Text Formatting
 
-This is a regular paragraph. Here is some **bold text**. And here is a mix of **bold** and plain text.
-
-这是中文，这里有**加粗的中文**。
+This is a regular paragraph. Here is some **bold text**.
+This line includes `inline code` for testing.
+这是中文，这里有**加粗的中文**和`some_code()`。
 
 ### H3: Lists
 
 This section tests lists.
 * Item 1
 * Item 2
-* **Item 3 with bold text**
+* **Item 3 with bold text** and `code`.
 
 ### H3: Link Formatting
 
@@ -33,7 +33,7 @@ Below is a simple table.
 |----------|:--------:|----------|
 | Row 1, Col 1 | Row 1, Col 2 | Row 1, Col 3 |
 | Row 2, Col 1 | Row 2, Col 2 | Row 2, Col 3 |
-| **Bold** | `code` | [Google](https://google.com) |
+| **Bold** | `code()` | [Google](https://google.com) |
 
 Here is some text between two tables. This is important to ensure the parser correctly separates content blocks.
 
@@ -43,5 +43,6 @@ And here is a second, more complex table.
 |---|---|:---:|---|
 | Docs Converter | Bold Text | **Fixed** | Required explicit styling. |
 | Docs Converter | Links | **Supported** | This is a test of that support. |
+| Docs Converter | Inline Code | `Supported` | This is a test of that support. |
 | Docs Converter | Tables | Supported | This is a test of that support. |
 | Slides Converter| Protocol | Defined | See the [protocol file](src/google_slider/PROTOCOL.md). |
