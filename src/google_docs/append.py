@@ -47,7 +47,8 @@ def _handle_table_append(docs_service, document_id: str, table_data: tuple):
         time.sleep(1)
 
         doc = docs_service.documents().get(documentId=document_id).execute()
-        populate_requests = markdown_parser.find_table_and_get_cell_requests(doc.get('body', {}), num_rows, num_cols, cell_contents)
+        end_index = _get_end_index(docs_service, document_id)
+        populate_requests = markdown_parser.find_table_and_get_cell_requests(doc.get('body', {}), num_rows, num_cols, cell_contents, end_index)
         
         if not populate_requests:
             return {"status": "error", "message": "Could not find table to populate cells."}

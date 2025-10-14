@@ -120,34 +120,66 @@ def handle_paragraph_style(line: str):
     return line, None
 
 def handle_inline_styles(text: str, start_index: int):
+    """
+    Correctly handles inline bold styling, overriding any inherited document styles.
+    It inserts the clean text first, then applies `bold: true` or `bold: false`
+    to the respective text segments.
+    """
     requests = []
-    current_pos = start_index
+    clean_text = ""
+    
+    # This list will store tuples of (start, end, is_bold)
+    segments = []
+    
     last_end = 0
-    matches = list(re.finditer(r'\*\*(.*?)\*\*', text))
-    if not matches:
-        if text:
-            requests.append({'insertText': {'location': {'index': start_index}, 'text': text}})
-        return requests, len(text)
-    for match in matches:
-        start, end = match.span()
-        plain_before = text[last_end:start]
-        if plain_before:
-            requests.append({'insertText': {'location': {'index': current_pos}, 'text': plain_before}})
-            current_pos += len(plain_before)
-        bold_text = match.group(1)
-        if bold_text:
-            requests.append({'insertText': {'location': {'index': current_pos}, 'text': bold_text}})
-            requests.append({
-                'updateTextStyle': {
-                    'range': {'startIndex': current_pos, 'endIndex': current_pos + len(bold_text)},
-                    'textStyle': {'bold': True},
-                    'fields': 'bold'
-                }
-            })
-            current_pos += len(bold_text)
-        last_end = end
-    plain_after = text[last_end:]
-    if plain_after:
-        requests.append({'insertText': {'location': {'index': current_pos}, 'text': plain_after}})
-    final_len = len(re.sub(r'\*\*', '', text))
-    return requests, final_len
+    for match in re.finditer(r'\*\*(.*?)\*\*', text):
+        # Plain segment before the bold
+        plain_before_text = text[last_end:match.start()]
+        if plain_before_text:
+            start_idx = len(clean_text)
+            clean_text += plain_before_text
+            end_idx = len(clean_text)
+            segments.append((start_idx, end_idx, False))
+
+        # Bold segment
+        bold_content = match.group(1)
+        if bold_content:
+            start_idx = len(clean_text)
+            clean_text += bold_content
+            end_idx = len(clean_text)
+            segments.append((start_idx, end_idx, True))
+        
+        last_end = match.end()
+    
+    # Final plain segment
+    plain_after_text = text[last_end:]
+    if plain_after_text:
+        start_idx = len(clean_text)
+        clean_text += plain_after_text
+        end_idx = len(clean_text)
+        segments.append((start_idx, end_idx, False))
+
+    if not clean_text:
+        return [], 0
+    
+    # 1. Insert the full clean text
+    requests.append({'insertText': {'location': {'index': start_index}, 'text': clean_text}})
+    
+    # 2. Create style requests for all segments
+    for start, end, is_bold in segments:
+        if start == end: # Don't style empty segments
+            continue
+        requests.append({
+            'updateTextStyle': {
+                'range': {
+                    'startIndex': start_index + start,
+                    'endIndex': start_index + end
+                },
+                'textStyle': {
+                    'bold': is_bold
+                },
+                'fields': 'bold'
+            }
+        })
+        
+    return requests, len(clean_text)
