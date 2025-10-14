@@ -191,7 +191,7 @@ def handle_inline_styles(text: str, start_index: int):
             style = {'bold': True}
             fields = 'bold'
         # Check if the part is a link token
-        elif (link_match := re.fullmatch(r'\[(?P<text>.*?)\]\((?P<url>.*?)\)', part)):
+        elif (link_match := re.fullmatch(r'\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)', part)):
             content = link_match.group('text')
             style = {'link': {'url': link_match.group('url')}}
             fields = 'link'
