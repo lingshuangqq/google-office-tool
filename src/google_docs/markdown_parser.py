@@ -86,7 +86,9 @@ def find_table_and_get_cell_requests(doc_body: dict, table_rows: int, table_cols
                     cell_start_index = cell['content'][0]['startIndex']
                     text_to_insert = cell_contents[content_pointer]
                     if text_to_insert:
-                        requests.append({'insertText': {'location': {'index': cell_start_index}, 'text': text_to_insert}})
+                        # Process cell content for inline styles (e.g., bold)
+                        inline_requests, _ = handle_inline_styles(text_to_insert, cell_start_index)
+                        requests.extend(inline_requests)
                 content_pointer -= 1
     return requests
 
@@ -103,13 +105,60 @@ def get_simple_markdown_requests(markdown_text: str, start_index: int):
 
 def process_line_as_text(line: str, start_index: int):
     requests = []
-    text_to_process, header_style = handle_paragraph_style(line)
+    is_list_item = False
+
+    # Handle list items
+    if line.strip().startswith('* ') or line.strip().startswith('- '):
+        is_list_item = True
+        # Determine the indentation level
+        indentation_level = (len(line) - len(line.lstrip(' '))) / 2
+        # Remove the bullet point and leading spaces from the line
+        text_to_process = re.sub(r'^\s*[-*]\s*', '', line)
+        header_style = None
+    else:
+        text_to_process, header_style = handle_paragraph_style(line)
+
+    # Handle inline styles (bold, etc.)
     inline_requests, inserted_len = handle_inline_styles(text_to_process, start_index)
     requests.extend(inline_requests)
+
+    # Add a newline character at the end of the line
     requests.append({'insertText': {'location': {'index': start_index + inserted_len}, 'text': '\n'}})
     total_len = inserted_len + 1
+
+    # Apply heading style if applicable
     if header_style:
         requests.append({'updateParagraphStyle': {'range': {'startIndex': start_index, 'endIndex': start_index + total_len}, 'paragraphStyle': header_style, 'fields': 'namedStyleType'}})
+    
+    # Apply bullet point style if it's a list item
+    if is_list_item:
+        requests.append({
+            'createParagraphBullets': {
+                'range': {
+                    'startIndex': start_index,
+                    'endIndex': start_index + total_len
+                },
+                'bulletPreset': 'BULLET_DISC_CIRCLE_SQUARE'
+            }
+        })
+        # Apply indentation if necessary
+        if indentation_level > 0:
+            requests.append({
+                'updateParagraphStyle': {
+                    'range': {
+                        'startIndex': start_index,
+                        'endIndex': start_index + total_len
+                    },
+                    'paragraphStyle': {
+                        'indentStart': {
+                            'magnitude': 36 * indentation_level,
+                            'unit': 'PT'
+                        }
+                    },
+                    'fields': 'indentStart'
+                }
+            })
+
     return requests, total_len
 
 def handle_paragraph_style(line: str):
@@ -120,34 +169,125 @@ def handle_paragraph_style(line: str):
     return line, None
 
 def handle_inline_styles(text: str, start_index: int):
+    """
+    Correctly handles multiple and nested inline styles like bold, links, and inline code,
+    overriding any inherited document styles by explicitly styling every text segment.
+    """
     requests = []
+    
+    # Regex to find all markdown tokens (bold, link, or inline code)
+    token_regex = r'(\*\*(?:.*?)\*\*|\[[^\]]+\]\([^\)]+\)|`(?:.*?)`)'
+    parts = re.split(token_regex, text)
+    
     current_pos = start_index
-    last_end = 0
-    matches = list(re.finditer(r'\*\*(.*?)\*\*', text))
-    if not matches:
-        if text:
-            requests.append({'insertText': {'location': {'index': start_index}, 'text': text}})
-        return requests, len(text)
-    for match in matches:
-        start, end = match.span()
-        plain_before = text[last_end:start]
-        if plain_before:
-            requests.append({'insertText': {'location': {'index': current_pos}, 'text': plain_before}})
-            current_pos += len(plain_before)
-        bold_text = match.group(1)
-        if bold_text:
-            requests.append({'insertText': {'location': {'index': current_pos}, 'text': bold_text}})
-            requests.append({
-                'updateTextStyle': {
-                    'range': {'startIndex': current_pos, 'endIndex': current_pos + len(bold_text)},
-                    'textStyle': {'bold': True},
-                    'fields': 'bold'
+    for part in parts:
+        if not part:
+            continue
+
+        # The logic is now more complex to handle nesting, specifically links inside bold.
+        # We can't just use a simple if/elif chain on the whole part.
+
+        # Is the part a bold token?
+        bold_match = re.fullmatch(r'\*\*(?P<text>.*?)\*\*', part)
+        if bold_match:
+            bold_content = bold_match.group('text')
+            # Now, recursively handle styles within the bold content
+            # This is a simplified recursion: we just check for links inside.
+            link_in_bold_match = re.match(r'^(.*?)(\[[^\]]+\]\([^\)]+\))(.*?)', bold_content)
+            if link_in_bold_match:
+                # Handle text before, the link, and text after, all as bold
+                before_text, link_token, after_text = link_in_bold_match.groups()
+                
+                # 1. Text before link (bold)
+                if before_text:
+                    requests.append({'insertText': {'location': {'index': current_pos}, 'text': before_text}})
+                    requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + len(before_text)}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
+                    current_pos += len(before_text)
+
+                # 2. The link itself (bold and linked)
+                if link_token:
+                    link_full_match = re.fullmatch(r'\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)', link_token)
+                    link_text = link_full_match.group('text')
+                    link_url = link_full_match.group('url')
+                    requests.append({'insertText': {'location': {'index': current_pos}, 'text': link_text}})
+                    requests.append({
+                        'updateTextStyle': {
+                            'range': {'startIndex': current_pos, 'endIndex': current_pos + len(link_text)},
+                            'textStyle': {'bold': True, 'link': {'url': link_url}},
+                            'fields': 'bold,link'
+                        }
+                    })
+                    current_pos += len(link_text)
+
+                # 3. Text after link (bold)
+                if after_text:
+                    requests.append({'insertText': {'location': {'index': current_pos}, 'text': after_text}})
+                    requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + len(after_text)}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
+                    current_pos += len(after_text)
+            else:
+                # No nesting, just a simple bold token
+                requests.append({'insertText': {'location': {'index': current_pos}, 'text': bold_content}})
+                requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + len(bold_content)}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
+                current_pos += len(bold_content)
+            continue
+
+        # Is the part a link token (and not inside bold)?
+        link_match = re.fullmatch(r'\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)', part)
+        if link_match:
+            content = link_match.group('text')
+            style = {'link': {'url': link_match.group('url')}}
+            fields = 'link'
+        # Is the part an inline code token?
+        elif (code_match := re.fullmatch(r'`(?P<text>.*?)`', part)):
+            content = code_match.group('text')
+            style = {
+                'weightedFontFamily': {
+                    'fontFamily': 'Courier New'
+                },
+                'backgroundColor': {
+                    'color': {
+                        'rgbColor': {
+                            'red': 0.93, 'green': 0.93, 'blue': 0.93
+                        }
+                    }
                 }
-            })
-            current_pos += len(bold_text)
-        last_end = end
-    plain_after = text[last_end:]
-    if plain_after:
-        requests.append({'insertText': {'location': {'index': current_pos}, 'text': plain_after}})
-    final_len = len(re.sub(r'\*\*', '', text))
-    return requests, final_len
+            }
+            fields = 'weightedFontFamily,backgroundColor'
+        # Otherwise, it's plain text
+        else:
+            content = part
+            # Explicitly reset all styles for plain text to avoid inheritance
+            style = {
+                'bold': False,
+                'italic': False,
+                'underline': False,
+                'strikethrough': False,
+                'backgroundColor': {},
+                'link': None,
+                'weightedFontFamily': {
+                    'fontFamily': 'Arial' # Reset font to a default
+                }
+            }
+            fields = 'bold,italic,underline,strikethrough,backgroundColor,link,weightedFontFamily'
+
+        if not content:
+            continue
+
+        # 1. Insert the text segment
+        requests.append({'insertText': {'location': {'index': current_pos}, 'text': content}})
+        
+        segment_start = current_pos
+        segment_end = current_pos + len(content)
+        
+        # 2. Apply the determined style
+        requests.append({
+            'updateTextStyle': {
+                'range': {'startIndex': segment_start, 'endIndex': segment_end},
+                'textStyle': style,
+                'fields': fields
+            }
+        })
+        
+        current_pos += len(content)
+        
+    return requests, (current_pos - start_index)

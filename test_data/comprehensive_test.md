@@ -1,28 +1,70 @@
-# Comprehensive Test Document with Large Tables
+# H1: Comprehensive Test Document
 
-This document now contains larger tables to stress-test the insertion logic.
+This document tests all supported formatting features of the Markdown-to-Google-Docs converter.
 
-### First Table (5 rows, 6 columns)
+## H2: Text Formatting
 
-| Header 1 | Header 2 | Header 3 | Header 4 | Header 5 | Header 6 |
-|---|---|---|---|---|---|
-| R1C1 | R1C2 | R1C3 | R1C4 | R1C5 | R1C6 |
-| R2C1 | R2C2 | R2C3 | R2C4 | R2C5 | R2C6 |
-| R3C1 | R3C2 | R3C3 | R3C4 | R3C5 | R3C6 |
-| R4C1 | R4C2 | R4C3 | R4C4 | R4C5 | R4C6 |
+This is a regular paragraph. Here is some **bold text**.
+This line includes `inline code` for testing.
+这是中文，这里有**加粗的中文**和`some_code()`。
 
-This text separates the large tables.
+### H3: Lists
 
-### Second Table (8 rows, 9 columns)
+This section tests lists.
+* Item 1
+    * Item 11
+* Item 2
+    * Item 22
+        * Item 222
+* **Item 3 with bold text** and `code`.
 
-| H1 | H2 | H3 | H4 | H5 | H6 | H7 | H8 | H9 |
-|---|---|---|---|---|---|---|---|---|
-| R1C1 | R1C2 | R1C3 | R1C4 | R1C5 | R1C6 | R1C7 | R1C8 | R1C9 |
-| R2C1 | R2C2 | R2C3 | R2C4 | R2C5 | R2C6 | R2C7 | R2C8 | R2C9 |
-| R3C1 | R3C2 | R3C3 | R3C4 | R3C5 | R3C6 | R3C7 | R3C8 | R3C9 |
-| R4C1 | R4C2 | R4C3 | R4C4 | R4C5 | R4C6 | R4C7 | R4C8 | R4C9 |
-| R5C1 | R5C2 | R5C3 | R5C4 | R5C5 | R5C6 | R5C7 | R5C8 | R5C9 |
-| R6C1 | R6C2 | R6C3 | R6C4 | R6C5 | R6C6 | R6C7 | R6C8 | R6C9 |
-| R7C1 | R7C2 | R7C3 | R7C4 | R7C5 | R7C6 | R7C7 | R7C8 | R7C9 |
+### H3: Link Formatting
 
-This is the final line of the test document.
+This section tests the new link support.
+* A link to the project's guide: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+* A plain link to [Google](https://www.google.com).
+* A bold link: **[Google](https://www.google.com)**
+
+#### H4: Another Level Down
+
+Just to test the H4 heading.
+
+## H2: Table Support
+
+Below is a simple table.
+
+| Header 1 | Header 2 | Header 3 |
+|----------|:--------:|----------|
+| Row 1, Col 1 | Row 1, Col 2 | Row 1, Col 3 |
+| Row 2, Col 1 | Row 2, Col 2 | Row 2, Col 3 |
+| **Bold** | `code()` | [Google](https://google.com) |
+
+Here is some text between two tables. This is important to ensure the parser correctly separates content blocks.
+
+And here is a second, more complex table.
+
+| Product | Feature | Status | Notes |
+|---|---|:---:|---|
+| Docs Converter | Bold Text | **Fixed** | Required explicit styling. |
+| Docs Converter | Links | **Supported** | This is a test of that support. |
+| Docs Converter | Inline Code | `Supported` | This is a test of that support. |
+| Docs Converter | Tables | Supported | This is a test of that support. |
+| Slides Converter| Protocol | Defined | See the [protocol file](src/google_slider/PROTOCOL.md). |
+
+---
+
+## H2: Ordered and Nested Lists Test
+
+1.  语言模型 - 实时交互：
+    * 顶级性能：Claude Opus 在输出端成本优势明显。
+    * 中端主力：Gemini Pro 和 GPT-5 形成价格同盟，是市场性价比标杆。
+    * 低端市场：GPT-5 mini/nano 凭借极具攻击性的定价，在轻量和微型应用中占据主导。
+
+2.  语言模型 - 离线批量处理：
+    * Google Gemini 是无可争议的领导者。其在所有模型层级上都提供了远低于竞争对手的批量处理价格，是任何需要大规模离线数据处理的企业的首选。
+
+3.  视频模型：
+    * 市场尚在初期，定价混乱但策略各异。Sora 2 在基础音视频内容上更便宜，而 Veo 3 在高质量制作上更具优势。
+
+4.  图像模型：
+    * Google 的 Gemini Image (nano-banana) 扮演了“价格破坏者”的角色，以极低成本抢占需要大规模生成图片的应用场景。
