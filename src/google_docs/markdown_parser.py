@@ -170,13 +170,13 @@ def handle_paragraph_style(line: str):
 
 def handle_inline_styles(text: str, start_index: int):
     """
-    Correctly handles multiple inline styles like bold, links, and inline code,
+    Correctly handles multiple and nested inline styles like bold, links, and inline code,
     overriding any inherited document styles by explicitly styling every text segment.
     """
     requests = []
     
-    # Regex to find all markdown tokens, with the most specific ones first.
-    token_regex = r'(\*\*\[[^\]]+\]\([^\)]+\)\*\*|\*\*(?:.*?)\*\*|\[[^\]]+\]\([^\)]+\)|`(?:.*?)`)'
+    # Regex to find all markdown tokens (bold, link, or inline code)
+    token_regex = r'(\*\*(?:.*?)\*\*|\[[^\]]+\]\([^\)]+\)|`(?:.*?)`)'
     parts = re.split(token_regex, text)
     
     current_pos = start_index
@@ -184,26 +184,60 @@ def handle_inline_styles(text: str, start_index: int):
         if not part:
             continue
 
-        # 1. Check for a bold link
-        bold_link_match = re.fullmatch(r'\*\*\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)\*\*', part)
-        if bold_link_match:
-            content = bold_link_match.group('text')
-            style = {
-                'bold': True,
-                'link': {'url': bold_link_match.group('url')}
-            }
-            fields = 'bold,link'
-        # 2. Check for a simple bold token
-        elif (bold_match := re.fullmatch(r'\*\*(?P<text>.*?)\*\*', part)):
-            content = bold_match.group('text')
-            style = {'bold': True}
-            fields = 'bold'
-        # 3. Check for a simple link token
-        elif (link_match := re.fullmatch(r'\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)', part)):
+        # The logic is now more complex to handle nesting, specifically links inside bold.
+        # We can't just use a simple if/elif chain on the whole part.
+
+        # Is the part a bold token?
+        bold_match = re.fullmatch(r'\*\*(?P<text>.*?)\*\*', part)
+        if bold_match:
+            bold_content = bold_match.group('text')
+            # Now, recursively handle styles within the bold content
+            # This is a simplified recursion: we just check for links inside.
+            link_in_bold_match = re.match(r'^(.*?)(\[[^\]]+\]\([^\)]+\))(.*?)', bold_content)
+            if link_in_bold_match:
+                # Handle text before, the link, and text after, all as bold
+                before_text, link_token, after_text = link_in_bold_match.groups()
+                
+                # 1. Text before link (bold)
+                if before_text:
+                    requests.append({'insertText': {'location': {'index': current_pos}, 'text': before_text}})
+                    requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + len(before_text)}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
+                    current_pos += len(before_text)
+
+                # 2. The link itself (bold and linked)
+                if link_token:
+                    link_full_match = re.fullmatch(r'\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)', link_token)
+                    link_text = link_full_match.group('text')
+                    link_url = link_full_match.group('url')
+                    requests.append({'insertText': {'location': {'index': current_pos}, 'text': link_text}})
+                    requests.append({
+                        'updateTextStyle': {
+                            'range': {'startIndex': current_pos, 'endIndex': current_pos + len(link_text)},
+                            'textStyle': {'bold': True, 'link': {'url': link_url}},
+                            'fields': 'bold,link'
+                        }
+                    })
+                    current_pos += len(link_text)
+
+                # 3. Text after link (bold)
+                if after_text:
+                    requests.append({'insertText': {'location': {'index': current_pos}, 'text': after_text}})
+                    requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + len(after_text)}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
+                    current_pos += len(after_text)
+            else:
+                # No nesting, just a simple bold token
+                requests.append({'insertText': {'location': {'index': current_pos}, 'text': bold_content}})
+                requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + len(bold_content)}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
+                current_pos += len(bold_content)
+            continue
+
+        # Is the part a link token (and not inside bold)?
+        link_match = re.fullmatch(r'\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)', part)
+        if link_match:
             content = link_match.group('text')
             style = {'link': {'url': link_match.group('url')}}
             fields = 'link'
-        # 4. Check for an inline code token
+        # Is the part an inline code token?
         elif (code_match := re.fullmatch(r'`(?P<text>.*?)`', part)):
             content = code_match.group('text')
             style = {
@@ -219,7 +253,7 @@ def handle_inline_styles(text: str, start_index: int):
                 }
             }
             fields = 'weightedFontFamily,backgroundColor'
-        # 5. Otherwise, it's plain text
+        # Otherwise, it's plain text
         else:
             content = part
             # Explicitly reset all styles for plain text to avoid inheritance
@@ -239,13 +273,13 @@ def handle_inline_styles(text: str, start_index: int):
         if not content:
             continue
 
-        # A. Insert the text segment
+        # 1. Insert the text segment
         requests.append({'insertText': {'location': {'index': current_pos}, 'text': content}})
         
         segment_start = current_pos
         segment_end = current_pos + len(content)
         
-        # B. Apply the determined style
+        # 2. Apply the determined style
         requests.append({
             'updateTextStyle': {
                 'range': {'startIndex': segment_start, 'endIndex': segment_end},

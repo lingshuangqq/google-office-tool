@@ -12,7 +12,10 @@ This line includes `inline code` for testing.
 
 This section tests lists.
 * Item 1
+    * Item 11
 * Item 2
+    * Item 22
+        * Item 222
 * **Item 3 with bold text** and `code`.
 
 ### H3: Link Formatting
@@ -20,6 +23,7 @@ This section tests lists.
 This section tests the new link support.
 * A link to the project's guide: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 * A plain link to [Google](https://www.google.com).
+* A bold link: **[Google](https://www.google.com)**
 
 #### H4: Another Level Down
 
@@ -46,3 +50,21 @@ And here is a second, more complex table.
 | Docs Converter | Inline Code | `Supported` | This is a test of that support. |
 | Docs Converter | Tables | Supported | This is a test of that support. |
 | Slides Converter| Protocol | Defined | See the [protocol file](src/google_slider/PROTOCOL.md). |
+
+---
+
+## H2: Ordered and Nested Lists Test
+
+1.  语言模型 - 实时交互：
+    * 顶级性能：Claude Opus 在输出端成本优势明显。
+    * 中端主力：Gemini Pro 和 GPT-5 形成价格同盟，是市场性价比标杆。
+    * 低端市场：GPT-5 mini/nano 凭借极具攻击性的定价，在轻量和微型应用中占据主导。
+
+2.  语言模型 - 离线批量处理：
+    * Google Gemini 是无可争议的领导者。其在所有模型层级上都提供了远低于竞争对手的批量处理价格，是任何需要大规模离线数据处理的企业的首选。
+
+3.  视频模型：
+    * 市场尚在初期，定价混乱但策略各异。Sora 2 在基础音视频内容上更便宜，而 Veo 3 在高质量制作上更具优势。
+
+4.  图像模型：
+    * Google 的 Gemini Image (nano-banana) 扮演了“价格破坏者”的角色，以极低成本抢占需要大规模生成图片的应用场景。
