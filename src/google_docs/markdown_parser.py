@@ -1,12 +1,14 @@
 import re
 
 def create_operation_plan(markdown_text: str) -> list:
-    """Parses markdown into a list of operation blocks (simple text or table)."""
+    """Parses markdown into a list of operation blocks (simple text, table, or list)."""
     plan = []
     lines = markdown_text.splitlines()
     i = 0
     while i < len(lines):
         line = lines[i]
+        
+        # Check for Table
         if line.strip().startswith('|') and (i + 1) < len(lines) and re.match(r'^\|[-|: ]+\|$', lines[i+1].strip()):
             table_lines = []
             j = i
@@ -20,10 +22,36 @@ def create_operation_plan(markdown_text: str) -> list:
                 plan.append({'type': 'table', 'data': table_data})
                 i = j
                 continue
+
+        # Check for List
+        list_type = get_list_type(line)
+        if list_type:
+            list_lines = []
+            j = i
+            while j < len(lines):
+                next_line = lines[j]
+                next_type = get_list_type(next_line)
+                # Continue if it's a list item.
+                if next_type:
+                    list_lines.append(next_line)
+                    j += 1
+                else:
+                    break
+            
+            plan.append({'type': 'list', 'lines': list_lines, 'list_type': list_type})
+            i = j
+            continue
         
+        # Simple Text
         simple_text_lines = []
         j = i
-        while j < len(lines) and not (lines[j].strip().startswith('|') and (j + 1) < len(lines) and re.match(r'^\|[-|: ]+\|$', lines[j+1].strip())):
+        while j < len(lines):
+            # Stop if we hit a table or a list
+            if (lines[j].strip().startswith('|') and (j + 1) < len(lines) and re.match(r'^\|[-|: ]+\|$', lines[j+1].strip())):
+                break
+            if get_list_type(lines[j]):
+                break
+            
             simple_text_lines.append(lines[j])
             j += 1
         
@@ -32,6 +60,15 @@ def create_operation_plan(markdown_text: str) -> list:
         i = j
 
     return plan
+
+def get_list_type(line: str):
+    """Determines if a line is a list item and returns its type ('unordered' or 'ordered')."""
+    stripped = line.strip()
+    if re.match(r'^[-*]\s+', stripped):
+        return 'unordered'
+    if re.match(r'^\d+\.\s+', stripped):
+        return 'ordered'
+    return None
 
 def parse_markdown_table(markdown_text: str):
     """Parses a block of text known to be a table."""
@@ -92,6 +129,62 @@ def find_table_and_get_cell_requests(doc_body: dict, table_rows: int, table_cols
                 content_pointer -= 1
     return requests
 
+def get_list_requests(list_lines: list, list_type: str, start_index: int):
+    """Generates API requests for a list block."""
+    requests = []
+    current_index = start_index
+    
+    for line in list_lines:
+        # Calculate indentation (assuming 2 spaces = 1 level)
+        leading_spaces = len(line) - len(line.lstrip(' '))
+        indent_level = leading_spaces // 2
+        
+        # Content without marker
+        if list_type == 'unordered':
+            content = re.sub(r'^\s*[-*]\s+', '', line)
+        else:
+            content = re.sub(r'^\s*\d+\.\s+', '', line)
+            
+        # 1. Insert Tabs for nesting
+        if indent_level > 0:
+            requests.append({
+                'insertText': {
+                    'location': {'index': current_index},
+                    'text': '\t' * indent_level
+                }
+            })
+            current_index += indent_level
+            
+        # 2. Insert Content with Styles
+        inline_reqs, inserted_len = handle_inline_styles(content, current_index)
+        requests.extend(inline_reqs)
+        current_index += inserted_len
+        
+        # 3. Insert Newline
+        requests.append({
+            'insertText': {
+                'location': {'index': current_index},
+                'text': '\n'
+            }
+        })
+        current_index += 1
+
+    # 4. Apply Bullets to the whole block
+    total_len = current_index - start_index
+    bullet_preset = 'BULLET_DISC_CIRCLE_SQUARE' if list_type == 'unordered' else 'NUMBERED_DECIMAL_ALPHA_ROMAN'
+    
+    requests.append({
+        'createParagraphBullets': {
+            'range': {
+                'startIndex': start_index,
+                'endIndex': current_index
+            },
+            'bulletPreset': bullet_preset
+        }
+    })
+    
+    return requests, total_len
+
 def get_simple_markdown_requests(markdown_text: str, start_index: int):
     """Generates API requests for a block of simple markdown text."""
     all_requests = []
@@ -105,18 +198,8 @@ def get_simple_markdown_requests(markdown_text: str, start_index: int):
 
 def process_line_as_text(line: str, start_index: int):
     requests = []
-    is_list_item = False
-
-    # Handle list items
-    if line.strip().startswith('* ') or line.strip().startswith('- '):
-        is_list_item = True
-        # Determine the indentation level
-        indentation_level = (len(line) - len(line.lstrip(' '))) / 2
-        # Remove the bullet point and leading spaces from the line
-        text_to_process = re.sub(r'^\s*[-*]\s*', '', line)
-        header_style = None
-    else:
-        text_to_process, header_style = handle_paragraph_style(line)
+    
+    text_to_process, header_style = handle_paragraph_style(line)
 
     # Handle inline styles (bold, etc.)
     inline_requests, inserted_len = handle_inline_styles(text_to_process, start_index)
@@ -130,35 +213,6 @@ def process_line_as_text(line: str, start_index: int):
     if header_style:
         requests.append({'updateParagraphStyle': {'range': {'startIndex': start_index, 'endIndex': start_index + total_len}, 'paragraphStyle': header_style, 'fields': 'namedStyleType'}})
     
-    # Apply bullet point style if it's a list item
-    if is_list_item:
-        requests.append({
-            'createParagraphBullets': {
-                'range': {
-                    'startIndex': start_index,
-                    'endIndex': start_index + total_len
-                },
-                'bulletPreset': 'BULLET_DISC_CIRCLE_SQUARE'
-            }
-        })
-        # Apply indentation if necessary
-        if indentation_level > 0:
-            requests.append({
-                'updateParagraphStyle': {
-                    'range': {
-                        'startIndex': start_index,
-                        'endIndex': start_index + total_len
-                    },
-                    'paragraphStyle': {
-                        'indentStart': {
-                            'magnitude': 36 * indentation_level,
-                            'unit': 'PT'
-                        }
-                    },
-                    'fields': 'indentStart'
-                }
-            })
-
     return requests, total_len
 
 def handle_paragraph_style(line: str):

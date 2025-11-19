@@ -24,6 +24,11 @@ def install_content(docs_service, document_id: str, markdown_content: str, start
             if result['status'] != 'success': return result
             current_index = _get_end_index(docs_service, document_id)
 
+        elif operation['type'] == 'list':
+            result = _handle_list_insertion_at_index(docs_service, document_id, operation['lines'], operation['list_type'], current_index)
+            if result['status'] != 'success': return result
+            current_index = _get_end_index(docs_service, document_id)
+
     return {"status": "success", "message": "Successfully installed all content blocks."}
 
 def _get_end_index(docs_service, document_id: str) -> int:
@@ -74,3 +79,17 @@ def _handle_simple_insertion_at_index(docs_service, document_id: str, markdown_c
 
     except Exception as e:
         return {"status": "error", "message": f"An error occurred during simple insertion: {e}"}
+
+def _handle_list_insertion_at_index(docs_service, document_id: str, list_lines: list, list_type: str, start_index: int):
+    try:
+        requests, _ = markdown_parser.get_list_requests(list_lines, list_type, start_index)
+        if not requests:
+             return {"status": "success", "message": "No list content to append."}
+
+        result = execute_batch_update(docs_service, document_id, requests)
+        if result['status'] == 'success':
+            time.sleep(1)
+        return result
+
+    except Exception as e:
+        return {"status": "error", "message": f"An error occurred during list insertion: {e}"}
