@@ -140,10 +140,15 @@ def get_list_requests(list_lines: list, list_type: str, start_index: int):
         indent_level = leading_spaces // 2
         
         # Content without marker
-        if list_type == 'unordered':
+        # Dynamically check for marker type to handle nested mixed lists (e.g. unordered inside ordered)
+        stripped_line = line.strip()
+        if re.match(r'^[-*]\s+', stripped_line):
             content = re.sub(r'^\s*[-*]\s+', '', line)
-        else:
+        elif re.match(r'^\d+\.\s+', stripped_line):
             content = re.sub(r'^\s*\d+\.\s+', '', line)
+        else:
+            # Fallback (should typically not be reached for valid list lines)
+            content = stripped_line
             
         # 1. Insert Tabs for nesting
         if indent_level > 0:
