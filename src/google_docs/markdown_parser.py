@@ -222,6 +222,10 @@ def handle_paragraph_style(line: str):
     if line.startswith('#### '): return line[5:], {'namedStyleType': 'HEADING_4'}
     return line, None
 
+def utf16_len(s: str) -> int:
+    """Calculates the length of a string in UTF-16 code units."""
+    return len(s.encode('utf-16-le')) // 2
+
 def handle_inline_styles(text: str, start_index: int):
     """
     Correctly handles multiple and nested inline styles like bold, links, and inline code,
@@ -254,35 +258,39 @@ def handle_inline_styles(text: str, start_index: int):
                 
                 # 1. Text before link (bold)
                 if before_text:
+                    u16_len = utf16_len(before_text)
                     requests.append({'insertText': {'location': {'index': current_pos}, 'text': before_text}})
-                    requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + len(before_text)}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
-                    current_pos += len(before_text)
+                    requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + u16_len}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
+                    current_pos += u16_len
 
                 # 2. The link itself (bold and linked)
                 if link_token:
                     link_full_match = re.fullmatch(r'\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)', link_token)
                     link_text = link_full_match.group('text')
                     link_url = link_full_match.group('url')
+                    u16_len = utf16_len(link_text)
                     requests.append({'insertText': {'location': {'index': current_pos}, 'text': link_text}})
                     requests.append({
                         'updateTextStyle': {
-                            'range': {'startIndex': current_pos, 'endIndex': current_pos + len(link_text)},
+                            'range': {'startIndex': current_pos, 'endIndex': current_pos + u16_len},
                             'textStyle': {'bold': True, 'link': {'url': link_url}},
                             'fields': 'bold,link'
                         }
                     })
-                    current_pos += len(link_text)
+                    current_pos += u16_len
 
                 # 3. Text after link (bold)
                 if after_text:
+                    u16_len = utf16_len(after_text)
                     requests.append({'insertText': {'location': {'index': current_pos}, 'text': after_text}})
-                    requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + len(after_text)}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
-                    current_pos += len(after_text)
+                    requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + u16_len}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
+                    current_pos += u16_len
             else:
                 # No nesting, just a simple bold token
+                u16_len = utf16_len(bold_content)
                 requests.append({'insertText': {'location': {'index': current_pos}, 'text': bold_content}})
-                requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + len(bold_content)}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
-                current_pos += len(bold_content)
+                requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + u16_len}, 'textStyle': {'bold': True}, 'fields': 'bold'}})
+                current_pos += u16_len
             continue
 
         # Is the part a link token (and not inside bold)?
@@ -330,8 +338,9 @@ def handle_inline_styles(text: str, start_index: int):
         # 1. Insert the text segment
         requests.append({'insertText': {'location': {'index': current_pos}, 'text': content}})
         
+        u16_len = utf16_len(content)
         segment_start = current_pos
-        segment_end = current_pos + len(content)
+        segment_end = current_pos + u16_len
         
         # 2. Apply the determined style
         requests.append({
@@ -342,6 +351,6 @@ def handle_inline_styles(text: str, start_index: int):
             }
         })
         
-        current_pos += len(content)
+        current_pos += u16_len
         
     return requests, (current_pos - start_index)
