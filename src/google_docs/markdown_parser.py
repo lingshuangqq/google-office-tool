@@ -134,10 +134,20 @@ def get_list_requests(list_lines: list, list_type: str, start_index: int):
     requests = []
     current_index = start_index
     
+    # Detect indentation unit (e.g., 2 spaces or 4 spaces) based on the content
+    indentations = [len(line) - len(line.lstrip(' ')) for line in list_lines]
+    non_zero_indents = [i for i in indentations if i > 0]
+    # Default to 2 if no indentation found or if min indentation is unreasonably small (<2)
+    # forcing at least 2 to avoid division by 1 or 0 issues if malformed.
+    if non_zero_indents and min(non_zero_indents) >= 2:
+        indent_unit = min(non_zero_indents)
+    else:
+        indent_unit = 2
+
     for line in list_lines:
-        # Calculate indentation (assuming 2 spaces = 1 level)
+        # Calculate indentation based on detected unit
         leading_spaces = len(line) - len(line.lstrip(' '))
-        indent_level = leading_spaces // 2
+        indent_level = leading_spaces // indent_unit
         
         # Content without marker
         # Dynamically check for marker type to handle nested mixed lists (e.g. unordered inside ordered)
