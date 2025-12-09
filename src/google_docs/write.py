@@ -23,9 +23,9 @@ def write_to_google_doc(docs_service, drive_service, markdown_content: str, titl
             if header_image_path:
                 try:
                     print(f"Uploading header image from {header_image_path}...")
-                    image_url = upload_public_image(drive_service, header_image_path)
+                    image_info = upload_public_image(drive_service, header_image_path)
                     print(f"Adding header image to document...")
-                    header_result = add_header_with_image(docs_service, document_id, image_url)
+                    header_result = add_header_with_image(docs_service, document_id, image_info)
                     if header_result["status"] != "success":
                         print(f"Warning: Failed to add header image: {header_result.get('message')}")
                 except Exception as e:

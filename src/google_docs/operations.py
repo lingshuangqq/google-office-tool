@@ -34,8 +34,8 @@ def create_doc(drive_service, title: str, folder_id: str = None):
     except Exception as e:
         return {"status": "error", "message": f"An error occurred creating the document: {e}"}
 
-def upload_public_image(drive_service, file_path: str) -> str:
-    """Uploads an image to Drive, makes it public, and returns the webContentLink."""
+def upload_public_image(drive_service, file_path: str) -> dict:
+    """Uploads an image to Drive, makes it public, and returns info including the webContentLink and dimensions."""
     try:
         # Guess mimetype based on extension or default to jpeg
         _, ext = os.path.splitext(file_path)
@@ -47,7 +47,7 @@ def upload_public_image(drive_service, file_path: str) -> str:
         file = drive_service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id, webContentLink'
+            fields='id, webContentLink, imageMediaMetadata'
         ).execute()
         file_id = file.get('id')
         
@@ -56,28 +56,50 @@ def upload_public_image(drive_service, file_path: str) -> str:
             body={'role': 'reader', 'type': 'anyone'}
         ).execute()
         
-        return file.get('webContentLink')
+        metadata = file.get('imageMediaMetadata', {})
+        return {
+            'url': file.get('webContentLink'),
+            'width': metadata.get('width'),
+            'height': metadata.get('height')
+        }
     except Exception as e:
         raise Exception(f"Failed to upload image: {e}")
 
-def add_header_with_image(docs_service, document_id: str, image_url: str):
-    """Creates a header and inserts an image into it."""
+def add_header_with_image(docs_service, document_id: str, image_info: dict):
+    """Creates a header and inserts an image into it with a fixed height of 36 PT (approx 48px)."""
     try:
         # Create Header
         req_create = [{'createHeader': {'type': 'DEFAULT'}}]
         res = docs_service.documents().batchUpdate(documentId=document_id, body={'requests': req_create}).execute()
         header_id = res['replies'][0]['createHeader']['headerId']
         
+        # Calculate size
+        target_height_pt = 36 # approx 48px
+        object_size = {}
+        
+        if image_info.get('width') and image_info.get('height'):
+            aspect_ratio = float(image_info['width']) / float(image_info['height'])
+            target_width_pt = target_height_pt * aspect_ratio
+            object_size = {
+                'height': {'magnitude': target_height_pt, 'unit': 'PT'},
+                'width': {'magnitude': target_width_pt, 'unit': 'PT'}
+            }
+        
         # Insert Image
-        req_insert = [{
+        insert_cmd = {
             'insertInlineImage': {
-                'uri': image_url,
+                'uri': image_info['url'],
                 'location': {
                     'segmentId': header_id,
                     'index': 0
                 }
             }
-        }]
+        }
+        
+        if object_size:
+            insert_cmd['insertInlineImage']['objectSize'] = object_size
+
+        req_insert = [insert_cmd]
         return execute_batch_update(docs_service, document_id, req_insert)
     except Exception as e:
         return {"status": "error", "message": f"Failed to add header image: {e}"}
