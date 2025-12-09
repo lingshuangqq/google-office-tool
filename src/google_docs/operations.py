@@ -1,5 +1,7 @@
 import json
+import os
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaFileUpload
 
 def execute_batch_update(docs_service, document_id: str, requests: list) -> dict:
     """Executes a batchUpdate request and returns the API response."""
@@ -31,3 +33,51 @@ def create_doc(drive_service, title: str, folder_id: str = None):
         return {"status": "success", "document_id": file.get('id')}
     except Exception as e:
         return {"status": "error", "message": f"An error occurred creating the document: {e}"}
+
+def upload_public_image(drive_service, file_path: str) -> str:
+    """Uploads an image to Drive, makes it public, and returns the webContentLink."""
+    try:
+        # Guess mimetype based on extension or default to jpeg
+        _, ext = os.path.splitext(file_path)
+        mime_type = 'image/png' if ext.lower() == '.png' else 'image/jpeg'
+        
+        media = MediaFileUpload(file_path, mimetype=mime_type)
+        file_metadata = {'name': f'header_image_{os.path.basename(file_path)}'}
+        
+        file = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id, webContentLink'
+        ).execute()
+        file_id = file.get('id')
+        
+        drive_service.permissions().create(
+            fileId=file_id,
+            body={'role': 'reader', 'type': 'anyone'}
+        ).execute()
+        
+        return file.get('webContentLink')
+    except Exception as e:
+        raise Exception(f"Failed to upload image: {e}")
+
+def add_header_with_image(docs_service, document_id: str, image_url: str):
+    """Creates a header and inserts an image into it."""
+    try:
+        # Create Header
+        req_create = [{'createHeader': {'type': 'DEFAULT'}}]
+        res = docs_service.documents().batchUpdate(documentId=document_id, body={'requests': req_create}).execute()
+        header_id = res['replies'][0]['createHeader']['headerId']
+        
+        # Insert Image
+        req_insert = [{
+            'insertInlineImage': {
+                'uri': image_url,
+                'location': {
+                    'segmentId': header_id,
+                    'index': 0
+                }
+            }
+        }]
+        return execute_batch_update(docs_service, document_id, req_insert)
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to add header image: {e}"}
