@@ -23,6 +23,7 @@ def main():
     write_parser.add_argument("--title", default="Untitled Document")
     write_parser.add_argument("--folder_id")
     write_parser.add_argument("--header_image", help="Path to local image file to add as header")
+    write_parser.add_argument("--no-header", action="store_true", help="Do not add a header image")
 
     append_parser = docs_subparsers.add_parser("append")
     append_parser.add_argument("doc_id")
@@ -61,7 +62,20 @@ def main():
         if args.command == "write":
             with open(args.markdown_file, "r") as f:
                 content = f.read()
-            result = write_to_google_doc(services["docs"], services["drive"], content, args.title, args.doc_id, args.folder_id, args.header_image)
+            
+            header_image_path = None
+            if args.no_header:
+                header_image_path = None
+            elif args.header_image:
+                header_image_path = args.header_image
+            else:
+                # Default path
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                default_logo = os.path.join(base_dir, "assets", "default_header_logo.png")
+                if os.path.exists(default_logo):
+                    header_image_path = default_logo
+            
+            result = write_to_google_doc(services["docs"], services["drive"], content, args.title, args.doc_id, args.folder_id, header_image_path)
             if result["status"] == "success":
                 print(f"Successfully created and wrote to document: https://docs.google.com/document/d/{result['document_id']}")
                 print(f"Document ID: {result['document_id']}")
