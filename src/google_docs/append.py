@@ -14,6 +14,8 @@ def append_to_google_doc(docs_service, document_id: str, markdown_content: str) 
             result = _handle_simple_append(docs_service, document_id, operation['content'])
         elif operation['type'] == 'table':
             result = _handle_table_append(docs_service, document_id, operation['data'])
+        elif operation['type'] == 'list':
+            result = _handle_list_append(docs_service, document_id, operation['lines'], operation['list_type'])
         else:
             result = {"status": "error", "message": f"Unknown operation type: {operation['type']}"}
 
@@ -57,6 +59,23 @@ def _handle_table_append(docs_service, document_id: str, table_data: tuple):
 
     except Exception as e:
         return {"status": "error", "message": f"An error occurred during table insertion: {e}"}
+
+def _handle_list_append(docs_service, document_id: str, list_lines: list, list_type: str):
+    """Appends a list to the end of the document."""
+    try:
+        end_index = _get_end_index(docs_service, document_id)
+        requests = [{'insertText': {'location': {'index': end_index}, 'text': '\n'}}]
+        
+        list_requests, _ = markdown_parser.get_list_requests(list_lines, list_type, end_index + 1)
+        requests.extend(list_requests)
+
+        result = execute_batch_update(docs_service, document_id, requests)
+        if result['status'] == 'success':
+            time.sleep(1)
+        return result
+
+    except Exception as e:
+        return {"status": "error", "message": f"An error occurred during list insertion: {e}"}
 
 def _handle_simple_append(docs_service, document_id: str, markdown_content: str):
     """Appends a block of simple text to the end of the document."""

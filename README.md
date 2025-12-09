@@ -161,5 +161,14 @@ python3 code/src/client.py [工具] [命令] [参数]
 
 ## Markdown 格式协议
 
-- **Google Docs:** 用于生成文档的 Markdown 解析器支持标题、粗体和列表。更多细节请参考 `code/src/google_docs/markdown_parser.py` 中的实现。
+- **Google Docs:** 用于生成文档的 Markdown 解析器支持：
+    - **标题**: H1 (`#`) 到 H4 (`####`)。
+    - **粗体**: `**text**`。
+    - **链接**: `[text](url)`。
+    - **行内代码**: `` `code` ``。
+    - **列表**:
+        - **无序列表**: 使用 `-` 或 `*`，支持多级嵌套（通过缩进）。
+        - **有序列表**: 使用 `1.`，支持多级嵌套。
+    - **表格**: 标准 Markdown 表格语法。
+    更多细节请参考 `code/src/google_docs/markdown_parser.py` 中的实现。
 - **Google Slides:** 用于生成演示文稿的 Markdown 遵循特定的协议来定义幻灯片、标题和内容。详细规范请参阅此处的文档：[Google Slides Markdown 协议](src/google_slider/PROTOCOL.md)。
