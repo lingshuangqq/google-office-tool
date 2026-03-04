@@ -159,6 +159,16 @@ python3 code/src/client.py [工具] [命令] [参数]
     ```
     该脚本会自动调用 `server.py` 并执行一系列操作（创建、读取、修改、删除文档），然后输出结果。
 
+## 测试与验证
+
+项目包含一个全面的测试 Markdown 文件 `test_data/comprehensive_test.md`，涵盖了所有支持的格式特性（标题、列表、表格、链接、粗体、斜体、代码块、水平分割线等）。
+
+您可以运行以下命令来创建一个全功能展示文档进行验证：
+
+```bash
+python3 src/client.py docs write test_data/comprehensive_test.md --title "Full Feature Test" [--folder_id <文件夹ID>]
+```
+
 ## Markdown 格式协议
 
 - **Google Docs:** 用于生成文档的 Markdown 解析器支持：
@@ -170,5 +180,8 @@ python3 code/src/client.py [工具] [命令] [参数]
         - **无序列表**: 使用 `-` 或 `*`，支持多级嵌套（通过缩进）。
         - **有序列表**: 使用 `1.`，支持多级嵌套。
     - **表格**: 标准 Markdown 表格语法。
+    - **斜体**: `*italic*`。
+    - **多行代码块**: \`\`\` ... \`\`\`。
+    - **水平分割线**: `---`, `***`, `___`。
     更多细节请参考 `code/src/google_docs/markdown_parser.py` 中的实现。
 - **Google Slides:** 用于生成演示文稿的 Markdown 遵循特定的协议来定义幻灯片、标题和内容。详细规范请参阅此处的文档：[Google Slides Markdown 协议](src/google_slider/PROTOCOL.md)。

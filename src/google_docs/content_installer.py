@@ -34,6 +34,11 @@ def install_content(docs_service, document_id: str, markdown_content: str, start
             if result['status'] != 'success': return result
             current_index = _get_end_index(docs_service, document_id)
 
+        elif operation['type'] == 'code_block':
+            result = _handle_code_block_insertion_at_index(docs_service, document_id, operation['content'], current_index)
+            if result['status'] != 'success': return result
+            current_index = _get_end_index(docs_service, document_id)
+
     return {"status": "success", "message": "Successfully installed all content blocks."}
 
 def _get_end_index(docs_service, document_id: str) -> int:
@@ -139,4 +144,19 @@ def _handle_hr_insertion_at_index(docs_service, document_id: str, start_index: i
 
     except Exception as e:
         return {"status": "error", "message": f"An error occurred during HR insertion: {e}"}
+
+def _handle_code_block_insertion_at_index(docs_service, document_id: str, code_content: str, start_index: int):
+    try:
+        # Add leading newline to match append behavior
+        requests = [{'insertText': {'location': {'index': start_index}, 'text': '\n'}}]
+        code_requests, _ = markdown_parser.get_code_block_requests(code_content, start_index + 1)
+        requests.extend(code_requests)
+        
+        result = execute_batch_update(docs_service, document_id, requests)
+        if result['status'] == 'success':
+            time.sleep(1)
+        return result
+
+    except Exception as e:
+        return {"status": "error", "message": f"An error occurred during code block insertion: {e}"}
 

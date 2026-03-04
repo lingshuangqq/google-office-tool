@@ -90,6 +90,9 @@ def _install_content_at_index(docs_service, document_id: str, markdown_content: 
                 {'insertText': {'location': {'index': current_index + 1}, 'text': '\n'}}
             ]
             result = execute_batch_update(docs_service, document_id, requests)
+        elif operation['type'] == 'code_block':
+            requests, _ = markdown_parser.get_code_block_requests(operation['content'], current_index)
+            result = execute_batch_update(docs_service, document_id, requests)
 
         if result['status'] != 'success':
             return result

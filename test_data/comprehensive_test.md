@@ -92,4 +92,25 @@ The line below is a horizontal rule generated from `___`:
 
 ___
 
+### H3: Code Blocks Support
+
+This tests `inline code` mixed with other text.
+
+And below is a multi-line code block test:
+
+```python
+def hello_world():
+    """This is a test function."""
+    print("Hello, World!")
+    return True
+```
+
+```json
+{
+  "project": "Google Office MCP Tool",
+  "features": ["code blocks", "italics", "horizontal rules"],
+  "status": "success"
+}
+```
+
 *This is the end of the formatting test.*

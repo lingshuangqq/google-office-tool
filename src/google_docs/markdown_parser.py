@@ -8,6 +8,19 @@ def create_operation_plan(markdown_text: str) -> list:
     while i < len(lines):
         line = lines[i]
         
+        # Check for Code Block (``` ... ```)
+        if line.strip().startswith('```'):
+            code_lines = []
+            j = i + 1
+            while j < len(lines) and not lines[j].strip().startswith('```'):
+                code_lines.append(lines[j])
+                j += 1
+            
+            # Use content of code block, stripping language hint if present on first line
+            plan.append({'type': 'code_block', 'content': '\n'.join(code_lines)})
+            i = j + 1
+            continue
+
         # Check for Horizontal Rule (---, ***, ___)
         if re.match(r'^\s*([-*_])\s*(?:\1\s*){2,}\s*$', line):
             plan.append({'type': 'hr'})
@@ -69,12 +82,14 @@ def create_operation_plan(markdown_text: str) -> list:
         simple_text_lines = []
         j = i
         while j < len(lines):
-            # Stop if we hit a table, a list, or a horizontal rule
+            # Stop if we hit a table, a list, a horizontal rule, or code block
             if (lines[j].strip().startswith('|') and (j + 1) < len(lines) and re.match(r'^\|[-|: ]+\|$', lines[j+1].strip())):
                 break
             if get_list_type(lines[j]):
                 break
             if re.match(r'^\s*([-*_])\s*(?:\1\s*){2,}\s*$', lines[j]):
+                break
+            if lines[j].strip().startswith('```'):
                 break
             
             simple_text_lines.append(lines[j])
@@ -431,3 +446,30 @@ def handle_inline_styles(text: str, start_index: int):
         current_pos += u16_len
         
     return requests, (current_pos - start_index)
+
+def get_code_block_requests(code_content: str, start_index: int):
+    """Generates API requests for a block of code (multi-line monospace)."""
+    requests = []
+    u16_len = utf16_len(code_content)
+    
+    # 1. Insert the entire block content
+    requests.append({'insertText': {'location': {'index': start_index}, 'text': code_content}})
+    
+    # 2. Apply style (monospace font + light gray background)
+    requests.append({
+        'updateTextStyle': {
+            'range': {'startIndex': start_index, 'endIndex': start_index + u16_len},
+            'textStyle': {
+                'weightedFontFamily': {'fontFamily': 'Courier New'},
+                'backgroundColor': {
+                    'color': {'rgbColor': {'red': 0.93, 'green': 0.93, 'blue': 0.93}}
+                }
+            },
+            'fields': 'weightedFontFamily,backgroundColor'
+        }
+    })
+    
+    # 3. Add a newline at the end of the block
+    requests.append({'insertText': {'location': {'index': start_index + u16_len}, 'text': '\n'}})
+    
+    return requests, (u16_len + 1)
