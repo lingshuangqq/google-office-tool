@@ -16,6 +16,8 @@ def append_to_google_doc(docs_service, document_id: str, markdown_content: str) 
             result = _handle_table_append(docs_service, document_id, operation['data'])
         elif operation['type'] == 'list':
             result = _handle_list_append(docs_service, document_id, operation['lines'], operation['list_type'])
+        elif operation['type'] == 'hr':
+            result = _handle_hr_append(docs_service, document_id)
         else:
             result = {"status": "error", "message": f"Unknown operation type: {operation['type']}"}
 
@@ -91,3 +93,35 @@ def _handle_simple_append(docs_service, document_id: str, markdown_content: str)
 
     except Exception as e:
         return {"status": "error", "message": f"An error occurred during simple insertion: {e}"}
+
+def _handle_hr_append(docs_service, document_id: str):
+    """Appends a horizontal rule to the end of the document."""
+    try:
+        end_index = _get_end_index(docs_service, document_id)
+        requests = [
+            {'insertText': {'location': {'index': end_index}, 'text': '\n'}},
+            {
+                'updateParagraphStyle': {
+                    'range': {'startIndex': end_index, 'endIndex': end_index + 1},
+                    'paragraphStyle': {
+                        'borderBottom': {
+                            'color': {'color': {'rgbColor': {'red': 0, 'green': 0, 'blue': 0}}},
+                            'width': {'magnitude': 1, 'unit': 'PT'},
+                            'padding': {'magnitude': 0, 'unit': 'PT'},
+                            'dashStyle': 'SOLID'
+                        }
+                    },
+                    'fields': 'borderBottom'
+                }
+            },
+            {'insertText': {'location': {'index': end_index + 1}, 'text': '\n'}}
+        ]
+        
+        result = execute_batch_update(docs_service, document_id, requests)
+        if result['status'] == 'success':
+            time.sleep(1)
+        return result
+
+    except Exception as e:
+        return {"status": "error", "message": f"An error occurred during HR insertion: {e}"}
+

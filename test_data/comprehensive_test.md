@@ -68,3 +68,28 @@ And here is a second, more complex table.
 
 4.  图像模型：
     * Google 的 Gemini Image (nano-banana) 扮演了“价格破坏者”的角色，以极低成本抢占需要大规模生成图片的应用场景。
+
+---
+
+## H2: New Features (v1.4.0)
+
+### H3: Italic Support
+This section tests the *italic text* support. 
+* *This is an italic list item.*
+* This is a sentence with *italic* and **bold** text combined.
+* You can even have an *italic link to [Google](https://google.com)*.
+
+### H3: Horizontal Rule Support
+The line below is a horizontal rule generated from `---`:
+
+---
+
+The line below is a horizontal rule generated from `***`:
+
+***
+
+The line below is a horizontal rule generated from `___`:
+
+___
+
+*This is the end of the formatting test.*
