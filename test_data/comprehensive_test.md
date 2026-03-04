@@ -114,3 +114,14 @@ def hello_world():
 ```
 
 *This is the end of the formatting test.*
+
+### H3: Blockquote Support
+
+Here is a blockquote test:
+
+> This is a blockquote.
+> It can span multiple lines.
+> It should appear indented and slightly grayed out.
+> **Bold** and *italic* inside quotes should still work.
+
+End of blockquote test.

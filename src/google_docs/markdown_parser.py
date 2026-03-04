@@ -21,6 +21,20 @@ def create_operation_plan(markdown_text: str) -> list:
             i = j + 1
             continue
 
+        # Check for Blockquote (> text)
+        if line.strip().startswith('>'):
+            quote_lines = []
+            j = i
+            while j < len(lines) and lines[j].strip().startswith('>'):
+                # Strip the leading '>' and optional space
+                content_line = re.sub(r'^\s*>\s?', '', lines[j])
+                quote_lines.append(content_line)
+                j += 1
+            
+            plan.append({'type': 'blockquote', 'content': '\n'.join(quote_lines)})
+            i = j
+            continue
+
         # Check for Horizontal Rule (---, ***, ___)
         if re.match(r'^\s*([-*_])\s*(?:\1\s*){2,}\s*$', line):
             plan.append({'type': 'hr'})
@@ -82,7 +96,7 @@ def create_operation_plan(markdown_text: str) -> list:
         simple_text_lines = []
         j = i
         while j < len(lines):
-            # Stop if we hit a table, a list, a horizontal rule, or code block
+            # Stop if we hit a table, a list, a horizontal rule, code block or blockquote
             if (lines[j].strip().startswith('|') and (j + 1) < len(lines) and re.match(r'^\|[-|: ]+\|$', lines[j+1].strip())):
                 break
             if get_list_type(lines[j]):
@@ -90,6 +104,8 @@ def create_operation_plan(markdown_text: str) -> list:
             if re.match(r'^\s*([-*_])\s*(?:\1\s*){2,}\s*$', lines[j]):
                 break
             if lines[j].strip().startswith('```'):
+                break
+            if lines[j].strip().startswith('>'):
                 break
             
             simple_text_lines.append(lines[j])
@@ -473,3 +489,42 @@ def get_code_block_requests(code_content: str, start_index: int):
     requests.append({'insertText': {'location': {'index': start_index + u16_len}, 'text': '\n'}})
     
     return requests, (u16_len + 1)
+
+def get_blockquote_requests(blockquote_content: str, start_index: int):
+    """Generates API requests for a blockquote, applying indentation and text styling."""
+    requests, total_len = get_simple_markdown_requests(blockquote_content, start_index)
+    
+    if total_len > 0:
+        # Apply paragraph style for blockquote (indentation + spacing)
+        requests.append({
+            'updateParagraphStyle': {
+                'range': {'startIndex': start_index, 'endIndex': start_index + total_len},
+                'paragraphStyle': {
+                    'indentStart': {'magnitude': 36, 'unit': 'PT'},
+                    'indentFirstLine': {'magnitude': 36, 'unit': 'PT'},
+                    'spaceAbove': {'magnitude': 10, 'unit': 'PT'},
+                    'spaceBelow': {'magnitude': 10, 'unit': 'PT'},
+                    'shading': {
+                        'backgroundColor': {'color': {'rgbColor': {'red': 1.0, 'green': 0.98, 'blue': 0.8}}}
+                    }
+                },
+                'fields': 'indentStart,indentFirstLine,spaceAbove,spaceBelow,shading'
+            }
+        })
+        
+        # Apply text style for blockquote (gray text, italic)
+        # Note: This might overwrite existing bold/links if we aren't careful, 
+        # but Docs API updateTextStyle with specific fields usually merges nicely.
+        requests.append({
+            'updateTextStyle': {
+                'range': {'startIndex': start_index, 'endIndex': start_index + total_len},
+                'textStyle': {
+                    'foregroundColor': {'color': {'rgbColor': {'red': 0.4, 'green': 0.4, 'blue': 0.4}}},
+                    'italic': True
+                },
+                'fields': 'foregroundColor,italic'
+            }
+        })
+
+    return requests, total_len
+
