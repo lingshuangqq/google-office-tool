@@ -137,6 +137,15 @@ python3 code/src/client.py [工具] [命令] [参数]
 
 该服务运行在 STDIO (标准输入/输出) 模式下，无需启动网络服务器。
 
+**支持的核心 MCP 工具包括：**
+- `create_google_doc_from_markdown`: 新建并写入 Markdown。
+- `overwrite_google_doc`: 重新写入（自动清空并覆盖）现有文档。
+- `append_content_to_google_doc`: 在现有文档末尾追加内容。
+- `replace_placeholders_in_google_doc`: 在文档中查找并替换占位符。
+- `clear_google_doc_content`: 清空指定文档的内容。
+- `read_google_doc_content`: 读取指定文档为纯文本。
+- `create_google_slides_presentation`: 从 Markdown 创建幻灯片。
+
 **详细的设置和使用说明，请参阅 [MCP 服务器 README](src/mcp-server/README.md)。**
 
 ### 环境与运行
@@ -182,6 +191,7 @@ python3 src/client.py docs write test_data/comprehensive_test.md --title "Full F
     - **表格**: 标准 Markdown 表格语法。
     - **斜体**: `*italic*`。
     - **多行代码块**: \`\`\` ... \`\`\`。
+    - **引用块**: `> quote`。
     - **水平分割线**: `---`, `***`, `___`。
     更多细节请参考 `code/src/google_docs/markdown_parser.py` 中的实现。
 - **Google Slides:** 用于生成演示文稿的 Markdown 遵循特定的协议来定义幻灯片、标题和内容。详细规范请参阅此处的文档：[Google Slides Markdown 协议](src/google_slider/PROTOCOL.md)。
