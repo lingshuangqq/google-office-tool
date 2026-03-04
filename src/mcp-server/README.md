@@ -100,3 +100,15 @@
 ## 如何使用
 
 完成上述任一方式的配置和认证后，您就可以在相应的客户端（Gemini CLI 或 Cursor）中通过 `@google-office-tool` 来调用此项目提供的所有工具了。
+
+### 支持的工具列表
+
+| 工具名称 | 功能描述 |
+| :--- | :--- |
+| `create_google_doc_from_markdown` | 创建新的 Google 文档并将 Markdown 内容写入。 |
+| `overwrite_google_doc` | **(新)** 重新写入现有文档。会自动清空文档内容并写入新的 Markdown。 |
+| `append_content_to_google_doc` | 在现有 Google 文档的末尾追加 Markdown 内容。 |
+| `replace_placeholders_in_google_doc` | 在文档中查找特定占位符（如 `{{key}}`）并替换为 Markdown 内容。 |
+| `clear_google_doc_content` | 清空指定 Google 文档的正文内容。 |
+| `read_google_doc_content` | 读取指定 Google 文档并将其内容输出为纯文本（含表格数据）。 |
+| `create_google_slides_presentation` | 从符合特定协议的 Markdown 文件创建 Google Slides 演示文稿。 |
