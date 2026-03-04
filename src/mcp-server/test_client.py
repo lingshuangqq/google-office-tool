@@ -86,27 +86,44 @@ My placeholder is: {{placeholder}}
             await asyncio.sleep(2)
 
             # --- 5. Read the final content ---
-            print("\n--- 5. Reading final content ---")
+            # --- 5. Reading final content ---
             read_result_2 = await client.call_tool(
                 "read_google_doc_content", arguments={"document_id": document_id}
             )
             print("Read response 2:", read_result_2.data)
             await asyncio.sleep(2)
 
-            # --- 6. Clear the document ---
-            print("\n--- 6. Clearing the document ---")
+            # --- 6. Overwriting the document ---
+            print("\n--- 6. Overwriting the document ---")
+            overwrite_md = "# Overwritten Doc\n\nThis completely replaces the old content."
+            overwrite_result = await client.call_tool(
+                "overwrite_google_doc",
+                arguments={"document_id": document_id, "markdown_content": overwrite_md}
+            )
+            print("Overwrite response:", overwrite_result.data)
+            await asyncio.sleep(2)
+
+            # --- 7. Reading overwritten content ---
+            read_result_3 = await client.call_tool(
+                "read_google_doc_content", arguments={"document_id": document_id}
+            )
+            print("Read response 3:", read_result_3.data)
+            await asyncio.sleep(2)
+
+            # --- 8. Clearing the document ---
+            print("\n--- 8. Clearing the document ---")
             clear_result = await client.call_tool(
                 "clear_google_doc_content", arguments={"document_id": document_id}
             )
             print("Clear response:", clear_result.data)
             await asyncio.sleep(2)
 
-            # --- 7. Final read to confirm clearance ---
-            print("\n--- 7. Final read to confirm clearance ---")
-            read_result_3 = await client.call_tool(
+            # --- 9. Final read to confirm clearance ---
+            print("\n--- 9. Final read to confirm clearance ---")
+            read_result_final = await client.call_tool(
                 "read_google_doc_content", arguments={"document_id": document_id}
             )
-            print("Read response 3:", read_result_3.data)
+            print("Read response 4:", read_result_final.data)
 
     except Exception as e:
         print(f"\nAn unexpected error occurred: {e}")

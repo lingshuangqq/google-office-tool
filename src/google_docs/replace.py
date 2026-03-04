@@ -70,6 +70,32 @@ def _install_content_at_index(docs_service, document_id: str, markdown_content: 
             populate_requests = markdown_parser.find_table_and_get_cell_requests(doc_after_table.get('body', {}), num_rows, num_cols, cell_contents, current_index)
             if not populate_requests: return {"status": "error", "message": "Could not find table to populate."}
             result = execute_batch_update(docs_service, document_id, populate_requests)
+        elif operation['type'] == 'hr':
+            requests = [
+                {'insertText': {'location': {'index': current_index}, 'text': '\n'}},
+                {
+                    'updateParagraphStyle': {
+                        'range': {'startIndex': current_index, 'endIndex': current_index + 1},
+                        'paragraphStyle': {
+                            'borderBottom': {
+                                'color': {'color': {'rgbColor': {'red': 0, 'green': 0, 'blue': 0}}},
+                                'width': {'magnitude': 1, 'unit': 'PT'},
+                                'padding': {'magnitude': 0, 'unit': 'PT'},
+                                'dashStyle': 'SOLID'
+                            }
+                        },
+                        'fields': 'borderBottom'
+                    }
+                },
+                {'insertText': {'location': {'index': current_index + 1}, 'text': '\n'}}
+            ]
+            result = execute_batch_update(docs_service, document_id, requests)
+        elif operation['type'] == 'code_block':
+            requests, _ = markdown_parser.get_code_block_requests(operation['content'], current_index)
+            result = execute_batch_update(docs_service, document_id, requests)
+        elif operation['type'] == 'blockquote':
+            requests, _ = markdown_parser.get_blockquote_requests(operation['content'], current_index)
+            result = execute_batch_update(docs_service, document_id, requests)
 
         if result['status'] != 'success':
             return result

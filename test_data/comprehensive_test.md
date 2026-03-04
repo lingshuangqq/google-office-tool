@@ -68,3 +68,60 @@ And here is a second, more complex table.
 
 4.  图像模型：
     * Google 的 Gemini Image (nano-banana) 扮演了“价格破坏者”的角色，以极低成本抢占需要大规模生成图片的应用场景。
+
+---
+
+## H2: New Features (v1.4.0)
+
+### H3: Italic Support
+This section tests the *italic text* support. 
+* *This is an italic list item.*
+* This is a sentence with *italic* and **bold** text combined.
+* You can even have an *italic link to [Google](https://google.com)*.
+
+### H3: Horizontal Rule Support
+The line below is a horizontal rule generated from `---`:
+
+---
+
+The line below is a horizontal rule generated from `***`:
+
+***
+
+The line below is a horizontal rule generated from `___`:
+
+___
+
+### H3: Code Blocks Support
+
+This tests `inline code` mixed with other text.
+
+And below is a multi-line code block test:
+
+```python
+def hello_world():
+    """This is a test function."""
+    print("Hello, World!")
+    return True
+```
+
+```json
+{
+  "project": "Google Office MCP Tool",
+  "features": ["code blocks", "italics", "horizontal rules"],
+  "status": "success"
+}
+```
+
+*This is the end of the formatting test.*
+
+### H3: Blockquote Support
+
+Here is a blockquote test:
+
+> This is a blockquote.
+> It can span multiple lines.
+> It should appear indented and slightly grayed out.
+> **Bold** and *italic* inside quotes should still work.
+
+End of blockquote test.

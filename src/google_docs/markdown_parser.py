@@ -8,6 +8,39 @@ def create_operation_plan(markdown_text: str) -> list:
     while i < len(lines):
         line = lines[i]
         
+        # Check for Code Block (``` ... ```)
+        if line.strip().startswith('```'):
+            code_lines = []
+            j = i + 1
+            while j < len(lines) and not lines[j].strip().startswith('```'):
+                code_lines.append(lines[j])
+                j += 1
+            
+            # Use content of code block, stripping language hint if present on first line
+            plan.append({'type': 'code_block', 'content': '\n'.join(code_lines)})
+            i = j + 1
+            continue
+
+        # Check for Blockquote (> text)
+        if line.strip().startswith('>'):
+            quote_lines = []
+            j = i
+            while j < len(lines) and lines[j].strip().startswith('>'):
+                # Strip the leading '>' and optional space
+                content_line = re.sub(r'^\s*>\s?', '', lines[j])
+                quote_lines.append(content_line)
+                j += 1
+            
+            plan.append({'type': 'blockquote', 'content': '\n'.join(quote_lines)})
+            i = j
+            continue
+
+        # Check for Horizontal Rule (---, ***, ___)
+        if re.match(r'^\s*([-*_])\s*(?:\1\s*){2,}\s*$', line):
+            plan.append({'type': 'hr'})
+            i += 1
+            continue
+
         # Check for Table
         if line.strip().startswith('|') and (i + 1) < len(lines) and re.match(r'^\|[-|: ]+\|$', lines[i+1].strip()):
             table_lines = []
@@ -30,8 +63,25 @@ def create_operation_plan(markdown_text: str) -> list:
             j = i
             while j < len(lines):
                 next_line = lines[j]
+                if not next_line.strip():
+                    # Check ahead to see if the list continues after this empty line
+                    k = j + 1
+                    list_continues = False
+                    while k < len(lines):
+                        if not lines[k].strip():
+                            k += 1
+                        elif get_list_type(lines[k]):
+                            list_continues = True
+                            break
+                        else:
+                            break
+                    if list_continues:
+                        j += 1
+                        continue
+                    else:
+                        break
+                
                 next_type = get_list_type(next_line)
-                # Continue if it's a list item.
                 if next_type:
                     list_lines.append(next_line)
                     j += 1
@@ -46,10 +96,16 @@ def create_operation_plan(markdown_text: str) -> list:
         simple_text_lines = []
         j = i
         while j < len(lines):
-            # Stop if we hit a table or a list
+            # Stop if we hit a table, a list, a horizontal rule, code block or blockquote
             if (lines[j].strip().startswith('|') and (j + 1) < len(lines) and re.match(r'^\|[-|: ]+\|$', lines[j+1].strip())):
                 break
             if get_list_type(lines[j]):
+                break
+            if re.match(r'^\s*([-*_])\s*(?:\1\s*){2,}\s*$', lines[j]):
+                break
+            if lines[j].strip().startswith('```'):
+                break
+            if lines[j].strip().startswith('>'):
                 break
             
             simple_text_lines.append(lines[j])
@@ -248,17 +304,15 @@ def handle_inline_styles(text: str, start_index: int):
     """
     requests = []
     
-    # Regex to find all markdown tokens (bold, link, or inline code)
-    token_regex = r'(\*\*(?:.*?)\*\*|\[[^\]]+\]\([^\)]+\)|`(?:.*?)`)'
+    # Regex to find all markdown tokens (bold, italics, link, or inline code)
+    # Note: ** must be before * in regex to match bold before italic
+    token_regex = r'(\*\*(?:.*?)\*\*|\*(?:.*?)\*|\[[^\]]+\]\([^\)]+\)|`(?:.*?)`)'
     parts = re.split(token_regex, text)
     
     current_pos = start_index
     for part in parts:
         if not part:
             continue
-
-        # The logic is now more complex to handle nesting, specifically links inside bold.
-        # We can't just use a simple if/elif chain on the whole part.
 
         # Is the part a bold token?
         bold_match = re.fullmatch(r'\*\*(?P<text>.*?)\*\*', part)
@@ -308,7 +362,46 @@ def handle_inline_styles(text: str, start_index: int):
                 current_pos += u16_len
             continue
 
-        # Is the part a link token (and not inside bold)?
+        # Is the part an italic token?
+        italic_match = re.fullmatch(r'\*(?P<text>.*?)\*', part)
+        if italic_match:
+            italic_content = italic_match.group('text')
+            # Check for links inside italic
+            link_in_italic_match = re.match(r'^(.*?)(\[[^\]]+\]\([^\)]+\))(.*?)', italic_content)
+            if link_in_italic_match:
+                before_text, link_token, after_text = link_in_italic_match.groups()
+                if before_text:
+                    u16_len = utf16_len(before_text)
+                    requests.append({'insertText': {'location': {'index': current_pos}, 'text': before_text}})
+                    requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + u16_len}, 'textStyle': {'italic': True}, 'fields': 'italic'}})
+                    current_pos += u16_len
+                if link_token:
+                    link_full_match = re.fullmatch(r'\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)', link_token)
+                    link_text = link_full_match.group('text')
+                    link_url = link_full_match.group('url')
+                    u16_len = utf16_len(link_text)
+                    requests.append({'insertText': {'location': {'index': current_pos}, 'text': link_text}})
+                    requests.append({
+                        'updateTextStyle': {
+                            'range': {'startIndex': current_pos, 'endIndex': current_pos + u16_len},
+                            'textStyle': {'italic': True, 'link': {'url': link_url}},
+                            'fields': 'italic,link'
+                        }
+                    })
+                    current_pos += u16_len
+                if after_text:
+                    u16_len = utf16_len(after_text)
+                    requests.append({'insertText': {'location': {'index': current_pos}, 'text': after_text}})
+                    requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + u16_len}, 'textStyle': {'italic': True}, 'fields': 'italic'}})
+                    current_pos += u16_len
+            else:
+                u16_len = utf16_len(italic_content)
+                requests.append({'insertText': {'location': {'index': current_pos}, 'text': italic_content}})
+                requests.append({'updateTextStyle': {'range': {'startIndex': current_pos, 'endIndex': current_pos + u16_len}, 'textStyle': {'italic': True}, 'fields': 'italic'}})
+                current_pos += u16_len
+            continue
+
+        # Is the part a link token (and not inside bold or italic)?
         link_match = re.fullmatch(r'\[(?P<text>[^\]]+)\]\((?P<url>[^\)]+)\)', part)
         if link_match:
             content = link_match.group('text')
@@ -369,3 +462,69 @@ def handle_inline_styles(text: str, start_index: int):
         current_pos += u16_len
         
     return requests, (current_pos - start_index)
+
+def get_code_block_requests(code_content: str, start_index: int):
+    """Generates API requests for a block of code (multi-line monospace)."""
+    requests = []
+    u16_len = utf16_len(code_content)
+    
+    # 1. Insert the entire block content
+    requests.append({'insertText': {'location': {'index': start_index}, 'text': code_content}})
+    
+    # 2. Apply style (monospace font + light gray background)
+    requests.append({
+        'updateTextStyle': {
+            'range': {'startIndex': start_index, 'endIndex': start_index + u16_len},
+            'textStyle': {
+                'weightedFontFamily': {'fontFamily': 'Courier New'},
+                'backgroundColor': {
+                    'color': {'rgbColor': {'red': 0.93, 'green': 0.93, 'blue': 0.93}}
+                }
+            },
+            'fields': 'weightedFontFamily,backgroundColor'
+        }
+    })
+    
+    # 3. Add a newline at the end of the block
+    requests.append({'insertText': {'location': {'index': start_index + u16_len}, 'text': '\n'}})
+    
+    return requests, (u16_len + 1)
+
+def get_blockquote_requests(blockquote_content: str, start_index: int):
+    """Generates API requests for a blockquote, applying indentation and text styling."""
+    requests, total_len = get_simple_markdown_requests(blockquote_content, start_index)
+    
+    if total_len > 0:
+        # Apply paragraph style for blockquote (indentation + spacing)
+        requests.append({
+            'updateParagraphStyle': {
+                'range': {'startIndex': start_index, 'endIndex': start_index + total_len},
+                'paragraphStyle': {
+                    'indentStart': {'magnitude': 36, 'unit': 'PT'},
+                    'indentFirstLine': {'magnitude': 36, 'unit': 'PT'},
+                    'spaceAbove': {'magnitude': 10, 'unit': 'PT'},
+                    'spaceBelow': {'magnitude': 10, 'unit': 'PT'},
+                    'shading': {
+                        'backgroundColor': {'color': {'rgbColor': {'red': 1.0, 'green': 0.98, 'blue': 0.8}}}
+                    }
+                },
+                'fields': 'indentStart,indentFirstLine,spaceAbove,spaceBelow,shading'
+            }
+        })
+        
+        # Apply text style for blockquote (gray text, italic)
+        # Note: This might overwrite existing bold/links if we aren't careful, 
+        # but Docs API updateTextStyle with specific fields usually merges nicely.
+        requests.append({
+            'updateTextStyle': {
+                'range': {'startIndex': start_index, 'endIndex': start_index + total_len},
+                'textStyle': {
+                    'foregroundColor': {'color': {'rgbColor': {'red': 0.4, 'green': 0.4, 'blue': 0.4}}},
+                    'italic': True
+                },
+                'fields': 'foregroundColor,italic'
+            }
+        })
+
+    return requests, total_len
+

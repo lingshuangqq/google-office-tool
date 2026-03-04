@@ -75,14 +75,69 @@ def create_google_doc_from_markdown(
     """
     try:
         services = get_services()
+
+        # Check for default header image
+        header_image_path = None
+        # The repo root is already calculated as _repo_root at module level, 
+        # but for safety inside the function scope relative to __file__:
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        default_logo = os.path.join(repo_root, 'src', 'assets', 'default_header_logo.png')
+        
+        if os.path.exists(default_logo):
+            header_image_path = default_logo
+
         result = write_to_google_doc(
             docs_service=services["docs"],
             drive_service=services["drive"],
             markdown_content=markdown_content,
             title=title,
-            folder_id=folder_id
+            folder_id=folder_id,
+            header_image_path=header_image_path
         )
         return result
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool(tags=["doc"])
+def overwrite_google_doc(
+    document_id: str,
+    markdown_content: str
+) -> dict:
+    """
+    Overwrites an existing Google Doc with new markdown content. 
+    It clears the document first and then writes the new content.
+
+    Args:
+        document_id: The ID of the existing document to overwrite.
+        markdown_content: The new markdown content to write to the document.
+
+    Returns:
+        A dictionary containing the status of the operation.
+    """
+    try:
+        services = get_services()
+        if not services:
+            return {"status": "error", "message": "Failed to initialize Google API services."}
+
+        # Check for default header image
+        header_image_path = None
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        default_logo = os.path.join(repo_root, 'src', 'assets', 'default_header_logo.png')
+        
+        if os.path.exists(default_logo):
+            header_image_path = default_logo
+
+        # By passing document_id, write_to_google_doc will clear it and then write the content
+        result = write_to_google_doc(
+            docs_service=services["docs"],
+            drive_service=services["drive"],
+            markdown_content=markdown_content,
+            document_id=document_id,
+            header_image_path=header_image_path
+        )
+        return result
+
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
