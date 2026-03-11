@@ -304,6 +304,9 @@ def handle_inline_styles(text: str, start_index: int):
     """
     requests = []
     
+    # Handle <br> tags (standardize to newline)
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+    
     # Regex to find all markdown tokens (bold, italics, link, or inline code)
     # Note: ** must be before * in regex to match bold before italic
     token_regex = r'(\*\*(?:.*?)\*\*|\*(?:.*?)\*|\[[^\]]+\]\([^\)]+\)|`(?:.*?)`)'

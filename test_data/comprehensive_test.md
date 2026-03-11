@@ -125,3 +125,18 @@ Here is a blockquote test:
 > **Bold** and *italic* inside quotes should still work.
 
 End of blockquote test.
+
+### H3: Manual Line Break Support
+
+This paragraph has a<br>manual line break in it using `<br>`.
+And another one using `<br/>`.
+And a third one using `<br />`.
+
+Here is a table testing `<br>` inside cells:
+
+| Name | Description |
+|---|---|
+| Item A | First line.<br>Second line.<br>Third line. |
+| Item B | Text with `<br/>` and `<br />`. |
+| Item C | **Line 1**<br>*Line 2* |
+
