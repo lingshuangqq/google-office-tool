@@ -56,26 +56,45 @@ def create_operation_plan(markdown_text: str) -> list:
                 i = j
                 continue
 
+        
         # Check for List
         list_type = get_list_type(line)
         if list_type:
             list_lines = []
             j = i
+            had_empty_line = False
             while j < len(lines):
                 next_line = lines[j]
+                
+                is_break = False
+                if next_line.strip().startswith('#') or next_line.strip().startswith('```') or next_line.strip().startswith('>'):
+                    is_break = True
+                if next_line.strip().startswith('|') and j+1 < len(lines) and re.match(r'^\|[-|: ]+\|$', lines[j+1].strip()):
+                    is_break = True
+                if re.match(r'^\s*([-*_])\s*(?:\1\s*){2,}\s*$', next_line):
+                    is_break = True
+                
+                if is_break:
+                    break
+
                 if not next_line.strip():
-                    # Check ahead to see if the list continues after this empty line
+                    had_empty_line = True
                     k = j + 1
-                    list_continues = False
+                    list_resumes = False
                     while k < len(lines):
                         if not lines[k].strip():
                             k += 1
                         elif get_list_type(lines[k]):
-                            list_continues = True
+                            list_resumes = True
+                            break
+                        elif lines[k].strip().startswith('#') or lines[k].strip().startswith('```') or lines[k].strip().startswith('>'):
                             break
                         else:
-                            break
-                    if list_continues:
+                            k += 1
+                            
+                    if list_resumes:
+                        if list_lines:
+                            list_lines[-1] += '\v'
                         j += 1
                         continue
                     else:
@@ -84,14 +103,39 @@ def create_operation_plan(markdown_text: str) -> list:
                 next_type = get_list_type(next_line)
                 if next_type:
                     list_lines.append(next_line)
+                    had_empty_line = False
                     j += 1
                 else:
-                    break
-            
+                    is_continuation = False
+                    if not had_empty_line:
+                        is_continuation = True
+                    else:
+                        k = j + 1
+                        list_resumes = False
+                        while k < len(lines):
+                            if not lines[k].strip():
+                                k += 1
+                            elif get_list_type(lines[k]):
+                                list_resumes = True
+                                break
+                            elif lines[k].strip().startswith('#') or lines[k].strip().startswith('```') or lines[k].strip().startswith('>'):
+                                break
+                            else:
+                                k += 1
+                        if list_resumes or next_line.startswith(' ') or next_line.startswith('\t'):
+                            is_continuation = True
+
+                    if is_continuation:
+                        if list_lines:
+                            list_lines[-1] += '\v' + next_line
+                        had_empty_line = False
+                        j += 1
+                    else:
+                        break
+
             plan.append({'type': 'list', 'lines': list_lines, 'list_type': list_type})
             i = j
             continue
-        
         # Simple Text
         simple_text_lines = []
         j = i

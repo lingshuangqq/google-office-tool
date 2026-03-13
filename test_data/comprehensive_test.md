@@ -69,6 +69,17 @@ And here is a second, more complex table.
 4.  图像模型：
     * Google 的 Gemini Image (nano-banana) 扮演了“价格破坏者”的角色，以极低成本抢占需要大规模生成图片的应用场景。
 
+### H3: Multi-line List Item Test (List Continuation)
+
+1. Vertex AI 生成式 AI 完整定价指南
+https://cloud.google.com/vertex-ai/generative-ai/pricing
+
+2. 预留吞吐量 (Provisioned Throughput) 购买与使用指南
+https://cloud.google.com/vertex-ai/generative-ai/docs/provisioned-throughput
+
+3. 优先随用随付 (Priority PayGo) 配置说明
+https://docs.cloud.google.com/vertex-ai/generative-ai/docs/priority-paygo
+
 ---
 
 ## H2: New Features (v1.4.0)
